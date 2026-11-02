@@ -1,28 +1,24 @@
 ---
-name: "Claude Shannon"
-avatar: "shannon.jpg"
-shortBio: "Mathematician and electrical engineer known as the 'Father of Information Theory'. Pioneer in digital computing and cryptography."
-institution: "MIT, Cambridge MA"
+name: "Linyang Sun"
+avatar: ""
+shortBio: "PhD researcher focusing on microbial ecology and host–microbe interactions."
+institution: "University of Helsinki, Finland"
 ---
 
-I am a mathematician and electrical engineer best known for founding **Information Theory**. My work in the late 1940s established the theoretical foundations of modern digital communications and computing.
+I am a PhD researcher in Organismal and Evolutionary Biology at the University of Helsinki, Finland, under the supervision of [Anne Duplouy](https://researchportal.helsinki.fi/en/persons/anne-duplouy/) and [Johan Ekroos](https://researchportal.helsinki.fi/en/persons/johan-edvard-ekroos/). My research focuses on microbial ecology and host–microbe interactions.
 
-## My Life
+Outside academia, I enjoy hiking and spending time in the wilderness. I am also interested in investing and financial markets, and I enjoy applying ecological and evolutionary perspectives to understand market dynamics, human behavior, and everyday life.
 
-Born in Petoskey, Michigan on April 30, 1916, I showed an early aptitude for engineering and mathematics. After studying at the University of Michigan, I completed my PhD at MIT where I famously applied Boolean algebra to electrical circuits. My master's thesis on relay switching circuits is considered one of the most important master's theses ever written.
+## Current Research
 
-During World War, I worked at Bell Labs on fire control systems and cryptography, which led to my seminal work in information theory.
+My doctoral research combines several complementary approaches to understanding pollinator-associated microbiomes.
 
-## Current Work
+One of the central questions driving my research is how microbial communities change over time and respond to environmental variation. To explore this, I investigate long-term microbiome dynamics in the Glanville fritillary butterfly (*Melitaea cinxia*), using historical samples collected over nearly three decades. [[1]](https://doi.org/10.64898/2026.06.08.730914)
 
-I continue to work on various problems at the intersection of mathematics, engineering, and computer science. My interests include artificial intelligence, pattern recognition, game theory, and the fundamental limits of computation.
+Beyond temporal variation, I am interested in why different host species harbor distinct microbial communities. To what extent are these differences associated with host evolutionary history, ecological traits, or environmental conditions? I address these questions by integrating publicly available 16S rRNA sequencing datasets from bees worldwide. To facilitate such large-scale analyses, I also developed [Meta2Data](https://github.com/LinyangSun/Meta2Data), an open-source bioinformatics pipeline for processing and reanalysing public microbiome sequencing data. [[2]](https://doi.org/10.64898/2026.10.19.760025) [[3]](https://doi.org/10.64898/2026.10.01.732036)
 
-I also enjoy juggling, unicycling, and playing the clarinet - I even built a juggling machine!
+While these comparisons reveal patterns across host species, I am also interested in microbial variation within a single species. Using the bumblebee *Bombus terrestris* as a study system, I combine shotgun metagenomics and host population genomics to explore how microbial communities vary among populations in the context of its range expansion in Northern Europe.
 
-## Research Interests
+## Future Research Interests
 
-My research focus includes: **Information Theory**, **Cryptography**, **Digital Computing**, **Artificial Intelligence**, **Game Theory**, and **Switching Circuits**.
-
----
-
-*"I am a mathematician. I am interested in the fundamental limits on the rate at which information can be transmitted."*
+Beyond my doctoral research, I am interested in microbial bioprospecting, particularly the discovery and functional characterization of microorganisms and their natural products through genome and metagenome mining, experimental validation, and biotechnological applications.
