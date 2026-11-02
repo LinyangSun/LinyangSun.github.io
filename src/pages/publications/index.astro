@@ -29,10 +29,7 @@ const preprints = selected.filter((entry) => hasTag(entry, "Preprint")).sort(new
 
 <BaseLayout title={PAGES.publications.title}>
     <div class="publications-page">
-    <header class="page-header">
-        <h1 class="page-title">{PAGES.publications.title}</h1>
-        {PAGES.publications.subtitle && <p class="page-subtitle">{PAGES.publications.subtitle}</p>}
-    </header>
+    <h1 class="sr-only">{PAGES.publications.title}</h1>
 
     <section aria-labelledby="peer-reviewed-publications" class="mb-12">
         <h2 id="peer-reviewed-publications" class="publication-section-title">

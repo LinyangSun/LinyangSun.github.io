@@ -7,6 +7,7 @@ import { Image } from 'astro:assets';
 const activeSocials = SOCIALS.filter((s) => s.isActive);
 const bioCollection = await getCollection("bio");
 const bio = bioCollection[0]?.data;
+const pageViewsBadgeUrl = "https://hits.sh/linyangsun.github.io.svg?view=total&style=flat-square&label=Page%20views&color=64748b&labelColor=334155";
 ---
 
 <aside class="sidebar max-lg:flex-row max-lg:flex-wrap max-lg:gap-3 max-md:gap-2">
@@ -47,6 +48,17 @@ const bio = bioCollection[0]?.data;
                         <Icon name={SOCIAL_ICONS[social.name] || social.name} size={24} />
                     </a>
                 ))}
+            </div>
+            <div class="sidebar-traffic" title="Page views since the counter was added. Repeated visits may be counted.">
+                <img
+                    src={pageViewsBadgeUrl}
+                    alt="Total site page views"
+                    width="150"
+                    height="20"
+                    loading="lazy"
+                    decoding="async"
+                    referrerpolicy="no-referrer"
+                />
             </div>
         </div>
     </div>

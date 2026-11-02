@@ -979,3 +979,22 @@ a:hover,
 .publications-page .item-list {
     gap: 1.15rem;
 }
+
+/* Minimal, privacy-friendly counter badge underneath the social links. */
+.sidebar-traffic {
+    margin-top: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sidebar-traffic img {
+    display: block;
+    max-width: 100%;
+    width: auto;
+    height: 20px;
+}
+@media (max-width: 1024px) {
+    .sidebar-traffic {
+        justify-content: flex-start;
+    }
+}

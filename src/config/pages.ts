@@ -13,7 +13,7 @@ export const PAGES: PagesConfig = {
     },
     publications: {
         title: "Selected Publications",
-        subtitle: "Selected papers and preprints from 2026 onward.",
+        subtitle: "",
         isActive: true,
     },
     talks: {
