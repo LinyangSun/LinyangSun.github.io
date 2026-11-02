@@ -20,5 +20,13 @@ export default defineConfig({
   },
   site: 'https://linyangsun.github.io',
   base: '/',
-  integrations: [sitemap()],
+  integrations: [
+    sitemap({
+      // Keep internal visualizers out of the public sitemap.
+      filter: (page) => {
+        const pathname = new URL(page).pathname;
+        return pathname !== '/dev-tools' && !pathname.startsWith('/dev-tools/');
+      },
+    }),
+  ],
 });
