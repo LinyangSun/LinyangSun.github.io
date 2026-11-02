@@ -2,10 +2,10 @@ import type { SiteConfig, ThemeConfig, SettingsConfig, UmamiAnalyticsConfig, Ana
 
 export const SITE: SiteConfig = {
     website: "https://linyangsun.github.io/",
-    author: "Claude Shannon",
-    desc: "Personal academic portfolio and blog of Claude Shannon, Father of Information Theory.",
-    title: "Claude Shannon",
-    ogImage: "shannon.webp",
+    author: "Linyang Sun",
+    desc: "Academic portfolio of Linyang Sun, a PhD researcher studying microbial ecology and host–microbe interactions at the University of Helsinki.",
+    title: "Linyang Sun",
+    ogImage: "/favicon.svg",
     postPerPage: 5,
     favicon: "/favicon.svg",
     lang: "en",
