@@ -1197,3 +1197,8 @@ a:hover,
         width: min(100%, 210px);
     }
 }
+
+/* Hide the three Stats4U display-mode buttons, not the visitor globe itself. */
+.visitor-globe-canvas .visitor-globe-option-hidden {
+    display: none !important;
+}
