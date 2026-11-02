@@ -28,7 +28,7 @@ export const PAGES: PagesConfig = {
     },
     teaching: {
         title: "Teaching",
-        subtitle: "Academic courses and educational materials.",
+        subtitle: "Teaching assistantships at the University of Helsinki.",
         isActive: true,
     },
     tags: {

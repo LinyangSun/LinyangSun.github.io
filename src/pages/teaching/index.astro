@@ -1,4 +1,5 @@
 ---
+import { getCollection } from "astro:content";
 import BaseListing from "../../layouts/BaseListing.astro";
 import { PAGES } from "../../config";
 
@@ -7,6 +8,10 @@ if (PAGES.teaching.isActive === false) {
 }
 
 const { title, subtitle } = PAGES.teaching;
+const entries = (await getCollection("teaching")).sort((a, b) => {
+    const year = (entry) => Number(entry.data.tags?.find((tag) => /^\d{4}$/.test(tag)) || 0);
+    return year(b) - year(a);
+});
 ---
 
-<BaseListing collection="teaching" title={title} subtitle={subtitle} />
+<BaseListing collection="teaching" title={title} subtitle={subtitle} entries={entries} />
