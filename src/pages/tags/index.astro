@@ -5,19 +5,32 @@ import Tag from "../../components/ui/Tag.astro";
 import ContentHeader from "../../components/content/ContentHeader.astro";
 
 const tags = await getAllTags();
+const maxCount = Math.max(1, ...tags.map((tag) => tag.count));
 
-const maxCount = Math.max(...tags.map((t) => t.count));
-const minCount = Math.min(...tags.map((t) => t.count));
+// A stable, name-based layout keeps tags scattered without shifting positions
+// on refresh, and avoids running any client-side JavaScript.
+function hashTag(name: string): number {
+    let hash = 2166136261;
+    for (const character of name) {
+        hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+    }
+    return hash >>> 0;
+}
 
-function getTagSize(count: number): "sm" | "md" | "lg" {
-    if (tags.length < 5) return "md";
-    const range = maxCount - minCount;
-    if (range === 0) return "md";
+const scatteredTags = [...tags].sort(
+    (a, b) => hashTag(a.name) - hashTag(b.name) || a.name.localeCompare(b.name)
+);
 
-    const normalized = (count - minCount) / range;
-    if (normalized > 0.7) return "lg";
-    if (normalized > 0.3) return "md";
-    return "sm";
+function tagLayout(name: string, count: number): string {
+    const hash = hashTag(name);
+    const x = ((hash & 255) / 255 - 0.5) * 18;
+    const y = (((hash >>> 8) & 255) / 255 - 0.5) * 24;
+    const rotation = (((hash >>> 16) & 255) / 255 - 0.5) * 5;
+    const sizeVariation = ((hash >>> 24) & 255) / 255;
+    const frequency = count / maxCount;
+    const fontSize = 0.9 + 0.18 * frequency + 0.12 * sizeVariation;
+
+    return `--tag-offset-x:${x.toFixed(1)}px;--tag-offset-y:${y.toFixed(1)}px;--tag-rotate:${rotation.toFixed(1)}deg;--tag-font-size:${fontSize.toFixed(2)}rem;`;
 }
 ---
 
@@ -29,45 +42,23 @@ function getTagSize(count: number): "sm" | "md" | "lg" {
         />
 
         <div class="container-narrow pt-12">
-            <div
-                class="flex flex-wrap gap-4 items-center justify-center min-h-[300px] stagger-fade-in"
-            >
-                {
-                    tags.map((tag) => (
-                        <Tag
-                            name={tag.name}
-                            count={tag.count}
-                            size={getTagSize(tag.count)}
-                        />
-                    ))
-                }
+            <div class="organic-tag-cloud" role="list" aria-label="Browse topics">
+                {scatteredTags.map((tag) => (
+                    <span
+                        class="organic-tag-item"
+                        role="listitem"
+                        style={tagLayout(tag.name, tag.count)}
+                    >
+                        <Tag name={tag.name} count={tag.count} />
+                    </span>
+                ))}
             </div>
 
-            {
-                tags.length === 0 && (
-                    <p class="text-center text-text-muted mt-20 font-mono italic">
-                        No tags found in your content yet.
-                    </p>
-                )
-            }
+            {tags.length === 0 && (
+                <p class="text-center text-text-muted mt-20 font-mono italic">
+                    No tags found in your content yet.
+                </p>
+            )}
         </div>
     </div>
 </BaseLayout>
-
-<style>
-    .flex-wrap > * {
-        animation: fade-in 0.4s ease-out forwards;
-        opacity: 0;
-    }
-
-    @keyframes fade-in {
-        from {
-            opacity: 0;
-            transform: scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-</style>
