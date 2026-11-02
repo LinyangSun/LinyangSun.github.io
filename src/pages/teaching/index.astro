@@ -1,16 +1,30 @@
 ---
-import { getCollection } from "astro:content";
-import BaseListing from "../../layouts/BaseListing.astro";
+import { getEntry, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { PAGES } from "../../config";
 
 if (PAGES.teaching.isActive === false) {
     return Astro.redirect("/404");
 }
 
-const { title, subtitle } = PAGES.teaching;
-const entries = (await getCollection("teaching")).sort((a, b) => {
-    return (b.data.year || 0) - (a.data.year || 0);
-});
+const course = await getEntry("teaching", "eeb-020-evolutionary-biology");
+if (!course) {
+    throw new Error("EEB-020 teaching record not found.");
+}
+const { Content } = await render(course);
 ---
 
-<BaseListing collection="teaching" title={title} subtitle={subtitle} entries={entries} />
+<BaseLayout title={PAGES.teaching.title}>
+    <header class="page-header">
+        <h1 class="page-title">{PAGES.teaching.title}</h1>
+        {PAGES.teaching.subtitle && <p class="page-subtitle">{PAGES.teaching.subtitle}</p>}
+    </header>
+
+    <article class="container-narrow">
+        <h2 class="section-title">{course.data.title}</h2>
+        <p class="body-sm">Teaching Assistant (TA) · {course.data.institution}</p>
+        <div class="prose mt-4">
+            <Content />
+        </div>
+    </article>
+</BaseLayout>
