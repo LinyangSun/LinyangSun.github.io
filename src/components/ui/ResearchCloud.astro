@@ -1,0 +1,185 @@
+---
+const keywords = [
+  "Microbiome",
+  "Microbial Ecology",
+  "Pollinators",
+  "Evolution",
+  "Metagenomics",
+  "Host–microbe",
+  "Phylogeny",
+  "Climate Change",
+  "Bioinformatics",
+  "Genomics",
+  "Bioprospecting",
+  "Natural Products",
+  "Microbial Diversity",
+  "Open Science",
+];
+---
+
+<section class="research-cloud" data-research-cloud aria-label="Rotating research keyword cloud">
+  <h2 class="research-cloud-title">Research cloud</h2>
+  <div class="research-cloud-viewport">
+    <canvas
+      class="research-cloud-canvas"
+      width="232"
+      height="182"
+      data-words={JSON.stringify(keywords)}
+      role="img"
+      aria-label={keywords.join(", ")}
+    ></canvas>
+    <div class="research-cloud-fallback" aria-label="Research keywords">
+      {keywords.map((keyword, index) => (
+        <span class={index % 4 === 0 ? "research-cloud-highlight" : undefined}>{keyword}</span>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  let cleanup: (() => void) | null = null;
+
+  function mountResearchCloud() {
+    cleanup?.();
+    cleanup = null;
+
+    const host = document.querySelector<HTMLElement>("[data-research-cloud]");
+    const canvas = host?.querySelector<HTMLCanvasElement>("canvas");
+    if (!host || !canvas || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let words: string[];
+    try {
+      words = JSON.parse(canvas.dataset.words || "[]") as string[];
+    } catch {
+      return;
+    }
+    if (!words.length) return;
+
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const points = words.map((label, index) => {
+      const y = 1 - (index + 0.5) * 2 / words.length;
+      const radius = Math.sqrt(1 - y * y);
+      const angle = index * goldenAngle;
+      return {
+        label,
+        x: Math.cos(angle) * radius,
+        y,
+        z: Math.sin(angle) * radius,
+        highlight: index % 4 === 0,
+      };
+    });
+
+    let width = 232;
+    let height = 182;
+    let animationId = 0;
+    let lastTime = 0;
+    let lastDraw = 0;
+    let rotationTime = 0;
+    let paused = false;
+    let visible = true;
+
+    host.classList.add("is-animated");
+
+    function resize() {
+      const rect = canvas!.getBoundingClientRect();
+      width = rect.width || 232;
+      height = rect.height || 182;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas!.width = Math.round(width * dpr);
+      canvas!.height = Math.round(height * dpr);
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    resize();
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
+    resizeObserver?.observe(canvas);
+
+    const intersectionObserver = typeof IntersectionObserver !== "undefined"
+      ? new IntersectionObserver((entries) => {
+          visible = entries[0]?.isIntersecting ?? true;
+        }, { threshold: 0.05 })
+      : null;
+    intersectionObserver?.observe(canvas);
+
+    const onEnter = (event: PointerEvent) => {
+      if (event.pointerType === "mouse") paused = true;
+    };
+    const onLeave = () => { paused = false; };
+    host.addEventListener("pointerenter", onEnter);
+    host.addEventListener("pointerleave", onLeave);
+    window.addEventListener("resize", resize, { passive: true });
+
+    function frame(now: number) {
+      const elapsed = Math.min(now - (lastTime || now), 64);
+      lastTime = now;
+      if (visible && !paused) rotationTime += elapsed;
+
+      // Rendering at ~25fps keeps the constantly visible sidebar lightweight.
+      if (visible && document.visibilityState === "visible" && now - lastDraw >= 40) {
+        lastDraw = now;
+        ctx!.clearRect(0, 0, width, height);
+        const angleY = rotationTime * 0.00022;
+        const angleX = -0.18 + Math.sin(rotationTime * 0.00011) * 0.17;
+        const cy = Math.cos(angleY);
+        const sy = Math.sin(angleY);
+        const cx = Math.cos(angleX);
+        const sx = Math.sin(angleX);
+
+        const rendered = points.map((point) => {
+          const x = point.x * cy + point.z * sy;
+          const z1 = -point.x * sy + point.z * cy;
+          const y = point.y * cx - z1 * sx;
+          const z = point.y * sx + z1 * cx;
+          return { ...point, x, y, z };
+        }).sort((a, b) => a.z - b.z);
+
+        const styles = getComputedStyle(document.documentElement);
+        const foreground = styles.getPropertyValue("--foreground").trim() || "#334155";
+        const accent = styles.getPropertyValue("--accent").trim() || foreground;
+
+        for (const point of rendered) {
+          const depth = (point.z + 1) / 2;
+          const perspective = 0.77 + depth * 0.33;
+          const fontSize = 10 + depth * 3.9;
+          ctx!.font = (depth > 0.52 ? "600 " : "500 ") + fontSize.toFixed(1) + "px Inter, system-ui, sans-serif";
+          ctx!.textAlign = "center";
+          ctx!.textBaseline = "middle";
+          ctx!.globalAlpha = 0.26 + depth * 0.7;
+          ctx!.fillStyle = point.highlight ? accent : foreground;
+          ctx!.fillText(
+            point.label,
+            width / 2 + point.x * width * 0.36 * perspective,
+            height / 2 + point.y * height * 0.38 * perspective,
+            width * 0.58,
+          );
+        }
+        ctx!.globalAlpha = 1;
+      }
+      animationId = requestAnimationFrame(frame);
+    }
+    animationId = requestAnimationFrame(frame);
+
+    cleanup = () => {
+      cancelAnimationFrame(animationId);
+      resizeObserver?.disconnect();
+      intersectionObserver?.disconnect();
+      host.removeEventListener("pointerenter", onEnter);
+      host.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("resize", resize);
+      host.classList.remove("is-animated");
+    };
+  }
+
+  document.addEventListener("astro:page-load", mountResearchCloud);
+  document.addEventListener("astro:before-swap", () => {
+    cleanup?.();
+    cleanup = null;
+  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountResearchCloud, { once: true });
+  } else {
+    mountResearchCloud();
+  }
+</script>

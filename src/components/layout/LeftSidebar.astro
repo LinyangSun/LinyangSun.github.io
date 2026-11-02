@@ -2,6 +2,7 @@
 import { SITE, SOCIALS, SOCIAL_ICONS } from "../../config";
 import { getCollection } from "astro:content";
 import Icon from "../ui/Icon.astro";
+import ResearchCloud from "../ui/ResearchCloud.astro";
 import { Image } from 'astro:assets';
 
 const activeSocials = SOCIALS.filter((s) => s.isActive);
@@ -60,6 +61,7 @@ const pageViewsBadgeUrl = "https://hits.sh/linyangsun.github.io.svg?view=total&s
                     referrerpolicy="no-referrer"
                 />
             </div>
+            <ResearchCloud />
         </div>
     </div>
 </aside>
