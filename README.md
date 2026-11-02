@@ -84,9 +84,7 @@ This project follows a centralized configuration architecture and is driven enti
 
 ## 📖 Documentation & Setup
 
-For a comprehensive, step-by-step guide on how to configure your site, modify the design, and write new content, please refer to the dedicated setup post included in this template:
-
-**👉 [Setting up Your Academic Portfolio](src/content/posts/setting-up-portfolio.md)**
+Configure your site in [`src/config/`](src/config/). To publish a blog post, add a Markdown file to [`src/content/posts/`](src/content/posts/) using the frontmatter format in [`example_contents/post.md`](example_contents/post.md).
 
 
 ## 📋 Configuration
