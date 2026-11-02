@@ -1,14 +1,69 @@
 ---
-import BaseListing from "../../layouts/BaseListing.astro";
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import BaseItemCard from "../../components/ui/BaseItemCard.astro";
+import { getListingItem } from "../../utils/adapters";
 import { PAGES } from "../../config";
 
 if (PAGES.publications.isActive === false) {
     return Astro.redirect("/404");
 }
+
+const selected = (await getCollection("publications")).filter((entry) => {
+    const year = Number(entry.data.date?.slice(0, 4));
+    return Number.isInteger(year) && year >= 2026;
+});
+
+const hasTag = (entry, tag) =>
+    (entry.data.tags || []).some((value) => value.toLowerCase() === tag.toLowerCase());
+
+const newestFirst = (a, b) =>
+    new Date(b.data.date || "1900-01-01").getTime() -
+    new Date(a.data.date || "1900-01-01").getTime();
+
+const peerReviewed = selected
+    .filter((entry) => hasTag(entry, "Peer-reviewed") || hasTag(entry, "Journal Article"))
+    .sort(newestFirst);
+const preprints = selected.filter((entry) => hasTag(entry, "Preprint")).sort(newestFirst);
 ---
 
-<BaseListing
-    collection="publications"
-    title={PAGES.publications.title}
-    subtitle={PAGES.publications.subtitle}
-/>
+<BaseLayout title={PAGES.publications.title}>
+    <header class="page-header">
+        <h1 class="page-title">{PAGES.publications.title}</h1>
+        {PAGES.publications.subtitle && <p class="page-subtitle">{PAGES.publications.subtitle}</p>}
+    </header>
+
+    <section aria-labelledby="peer-reviewed-publications" class="mb-12">
+        <h2 id="peer-reviewed-publications" class="text-xl font-semibold mb-5">
+            Peer-reviewed Publications
+        </h2>
+        {peerReviewed.length > 0 ? (
+            <div class="item-list">
+                {peerReviewed.map((entry) => (
+                    <BaseItemCard
+                        {...getListingItem(entry)}
+                        href={`/publications/${entry.id}`}
+                        description={entry.data.description === "Peer-reviewed" ? undefined : entry.data.description}
+                        tags={[]}
+                    />
+                ))}
+            </div>
+        ) : (
+            <p class="text-foreground opacity-70">No selected peer-reviewed publications yet.</p>
+        )}
+    </section>
+
+    <section aria-labelledby="preprints">
+        <h2 id="preprints" class="text-xl font-semibold mb-5">Preprints</h2>
+        <div class="item-list">
+            {preprints.map((entry) => (
+                <BaseItemCard
+                    {...getListingItem(entry)}
+                    href={`/publications/${entry.id}`}
+                    description={entry.data.description === "Preprint" ? undefined : entry.data.description}
+                    tags={[]}
+                />
+            ))}
+        </div>
+    </section>
+</BaseLayout>

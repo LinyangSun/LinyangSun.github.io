@@ -42,8 +42,12 @@ for (const group of listing.group) {
   const title=clean(val(record.title?.title)||val(summary.title?.title));
   if (!title) continue;
   const dateValue=date(record)||date(summary),doiValue=doi(record)||doi(summary);
-  const type=record.type||summary.type||'other';
-  const typeLabel=type.split('-').map(s=>s[0]?.toUpperCase()+s.slice(1)).join(' ');
+  const year=Number(dateValue.slice(0,4));
+  if (!Number.isInteger(year) || year < 2026) continue;
+  const type=(record.type||summary.type||'other').toLowerCase();
+  // Only journal articles and preprints belong in this selected-publications section.
+  if (type !== 'journal-article' && type !== 'preprint') continue;
+  const typeLabel=type === 'preprint' ? 'Preprint' : 'Peer-reviewed';
   const journal=clean(val(record['journal-title'])||val(summary['journal-title']));
   const author=(record.contributors?.contributor||[]).map(x=>val(x['credit-name'])).filter(Boolean).join(', ');
   const source=val(record.url)||val(summary.url);
