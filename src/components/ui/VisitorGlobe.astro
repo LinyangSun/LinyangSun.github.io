@@ -36,3 +36,48 @@ const counterId = "5162609191";
         >Privacy</a>
     </p>
 </section>
+
+<script>
+    // Hide only the three Stats4U mode switches above the embedded globe.
+    // The provider inserts these controls asynchronously after its script loads.
+    let globeOptionsObserver: MutationObserver | null = null;
+
+    function hideVisitorGlobeOptions() {
+        const root = document.querySelector(".visitor-globe-canvas");
+        if (!root) return;
+
+        const controls = root.querySelectorAll<HTMLElement>(
+            "button, label, [role='button'], [role='tab'], [tabindex]"
+        );
+
+        for (const control of controls) {
+            const rawLabel = control.getAttribute("aria-label") || control.textContent || "";
+            const label = rawLabel.replace(/\s+/g, " ").trim();
+            if (/^(total visits|online now|online|cities|city)(?:\s*\(\d+\)|\s+\d+)?$/i.test(label)) {
+                control.classList.add("visitor-globe-option-hidden");
+            }
+        }
+    }
+
+    function observeVisitorGlobeOptions() {
+        globeOptionsObserver?.disconnect();
+        globeOptionsObserver = null;
+        const root = document.querySelector(".visitor-globe-canvas");
+        if (!root) return;
+
+        hideVisitorGlobeOptions();
+        globeOptionsObserver = new MutationObserver(hideVisitorGlobeOptions);
+        globeOptionsObserver.observe(root, { childList: true, subtree: true });
+    }
+
+    document.addEventListener("astro:page-load", observeVisitorGlobeOptions);
+    document.addEventListener("astro:before-swap", () => {
+        globeOptionsObserver?.disconnect();
+        globeOptionsObserver = null;
+    });
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", observeVisitorGlobeOptions, { once: true });
+    } else {
+        observeVisitorGlobeOptions();
+    }
+</script>
