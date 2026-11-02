@@ -48,7 +48,7 @@ const teaching = defineCollection({
         title: z.string(),
         institution: z.string().optional(),
         description: z.string().optional(),
-        tags: z.array(z.string()).optional(),
+        year: z.number().int().optional(),
         external_url: z.string().url().optional(),
     }),
 });

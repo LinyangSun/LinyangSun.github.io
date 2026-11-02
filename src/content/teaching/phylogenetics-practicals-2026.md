@@ -2,10 +2,7 @@
 title: "Phylogenetics & Practicals"
 institution: "University of Helsinki"
 description: "2026 · Teaching Assistant (TA)"
-tags:
-  - "2026"
-  - "Teaching Assistant"
-  - "Phylogenetics"
+year: 2026
 ---
 
 **Role:** Teaching Assistant (TA)

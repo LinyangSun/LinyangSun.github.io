@@ -2,10 +2,7 @@
 title: "Genomic Analysis I: Population Genomics and the Coalescent Theory"
 institution: "University of Helsinki"
 description: "2026 · Teaching Assistant (TA)"
-tags:
-  - "2026"
-  - "Teaching Assistant"
-  - "Population Genomics"
+year: 2026
 ---
 
 **Role:** Teaching Assistant (TA)
