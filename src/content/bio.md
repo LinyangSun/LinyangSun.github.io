@@ -1,6 +1,6 @@
 ---
 name: "Linyang Sun"
-avatar: ""
+avatar: "avatar.webp"
 shortBio: "PhD researcher focusing on microbial ecology and host–microbe interactions."
 institution: "University of Helsinki, Finland"
 ---
