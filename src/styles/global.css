@@ -954,3 +954,28 @@ a:hover,
         font-size: 0.85rem;
     }
 }
+
+/* Selected Publications: clear hierarchy between sections and paper titles. */
+.publications-page .page-title {
+    font-size: 1.7rem;
+}
+.publications-page .publication-section-title {
+    font-size: 1.4rem;
+    font-weight: 750;
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    padding-bottom: 0.65rem;
+    margin: 0 0 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--foreground);
+}
+.publications-page .card-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.45;
+    letter-spacing: normal;
+    margin-bottom: 0.4rem;
+}
+.publications-page .item-list {
+    gap: 1.15rem;
+}

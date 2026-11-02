@@ -28,13 +28,14 @@ const preprints = selected.filter((entry) => hasTag(entry, "Preprint")).sort(new
 ---
 
 <BaseLayout title={PAGES.publications.title}>
+    <div class="publications-page">
     <header class="page-header">
         <h1 class="page-title">{PAGES.publications.title}</h1>
         {PAGES.publications.subtitle && <p class="page-subtitle">{PAGES.publications.subtitle}</p>}
     </header>
 
     <section aria-labelledby="peer-reviewed-publications" class="mb-12">
-        <h2 id="peer-reviewed-publications" class="text-xl font-semibold mb-5">
+        <h2 id="peer-reviewed-publications" class="publication-section-title">
             Peer-reviewed Publications
         </h2>
         {peerReviewed.length > 0 ? (
@@ -54,7 +55,7 @@ const preprints = selected.filter((entry) => hasTag(entry, "Preprint")).sort(new
     </section>
 
     <section aria-labelledby="preprints">
-        <h2 id="preprints" class="text-xl font-semibold mb-5">Preprints</h2>
+        <h2 id="preprints" class="publication-section-title">Preprints</h2>
         <div class="item-list">
             {preprints.map((entry) => (
                 <BaseItemCard
@@ -66,4 +67,5 @@ const preprints = selected.filter((entry) => hasTag(entry, "Preprint")).sort(new
             ))}
         </div>
     </section>
+    </div>
 </BaseLayout>

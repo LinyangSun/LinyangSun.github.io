@@ -18,7 +18,7 @@ export const PAGES: PagesConfig = {
     },
     talks: {
         title: "Talks & Presentations",
-        subtitle: "Public lectures, colloquia, and conference presentations.",
+        subtitle: "Selected oral presentations at scientific conferences.",
         isActive: true,
     },
     projects: {
