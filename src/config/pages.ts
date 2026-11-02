@@ -36,9 +36,4 @@ export const PAGES: PagesConfig = {
         subtitle: "Explore content by topic.",
         isActive: true,
     },
-    cv: {
-        title: "Curriculum Vitae",
-        subtitle: "Academic and professional history.",
-        isActive: true,
-    },
 };

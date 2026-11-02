@@ -4,7 +4,11 @@ import { getCollection } from "astro:content";
 import Icon from "../ui/Icon.astro";
 import ResearchCloud from "../ui/ResearchCloud.astro";
 import { Image } from 'astro:assets';
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
+// Once public/CV.pdf is uploaded, the PDF link appears on every page automatically.
+const hasCvPdf = existsSync(join(process.cwd(), "public", "CV.pdf"));
 const activeSocials = SOCIALS.filter((s) => s.isActive);
 const bioCollection = await getCollection("bio");
 const bio = bioCollection[0]?.data;
@@ -35,6 +39,19 @@ const pageViewsBadgeUrl = "https://hits.sh/linyangsun.github.io.svg?view=total&s
             )}
             {bio?.shortBio && (
                 <p class="sidebar-bio mt-2 max-md:hidden">{bio.shortBio}</p>
+            )}
+            {hasCvPdf && (
+                <a
+                    href="/CV.pdf"
+                    class="sidebar-cv-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    type="application/pdf"
+                    aria-label="Open curriculum vitae PDF"
+                >
+                    <Icon name="ExternalLink" size={16} />
+                    CV (PDF)
+                </a>
             )}
             <div class="flex gap-1 flex-wrap items-center justify-center max-lg:justify-start mt-3">
                 {activeSocials.map((social) => (

@@ -74,26 +74,6 @@ const projects = defineCollection({
     }),
 });
 
-const cv = defineCollection({
-    loader: glob({ pattern: "cv.md", base: "./src/content" }),
-    schema: z.object({
-        name: z.string(),
-        title: z.string(),
-        experience: z.array(z.object({
-            role: z.string(),
-            institution: z.string(),
-            period: z.string(),
-            description: z.string(),
-        })).optional(),
-        education: z.array(z.object({
-            degree: z.string(),
-            institution: z.string(),
-            period: z.string(),
-            thesis: z.string().optional(),
-            description: z.string().optional(),
-        })).optional(),
-    }),
-});
 
 export const collections = {
     'publications': publications,
@@ -101,6 +81,5 @@ export const collections = {
     'posts': posts,
     'bio': bio,
     'projects': projects,
-    'cv': cv,
     'teaching': teaching,
 };
