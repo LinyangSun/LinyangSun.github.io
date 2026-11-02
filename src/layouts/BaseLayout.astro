@@ -37,13 +37,30 @@ const {
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site || SITE.website);
+const isHomePage = Astro.url.pathname === "/";
+const searchTitle = isHomePage
+    ? "Linyang Sun | PhD Researcher at the University of Helsinki"
+    : `${title} | ${SITE.title}`;
 
 const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Person",
-    name: SITE.author,
+    "@id": SITE.website + "#person",
+    name: "Linyang Sun",
     url: SITE.website,
-    jobTitle: "Professor",
+    image: new URL("/avatar.webp", SITE.website).href,
+    jobTitle: "PhD Researcher",
+    affiliation: {
+        "@type": "CollegeOrUniversity",
+        name: "University of Helsinki",
+        url: "https://www.helsinki.fi/en",
+    },
+    sameAs: [
+        "https://orcid.org/0000-0003-1148-0364",
+        "https://www.linkedin.com/in/linyang-sun-b92a69283/",
+        "https://www.researchgate.net/profile/Linyang-Sun",
+        "https://github.com/LinyangSun",
+    ],
     description: SITE.desc,
 };
 ---
@@ -102,22 +119,22 @@ const jsonLd = {
         <link rel="canonical" href={canonicalURL} />
 
         <!-- General Meta Tags -->
-        <title>{title} | {SITE.title}</title>
-        <meta name="title" content={`${title} | ${SITE.title}`} />
+        <title>{searchTitle}</title>
+        <meta name="title" content={searchTitle} />
         <meta name="description" content={description} />
         <meta name="author" content={SITE.author} />
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content={ogType} />
         <meta property="og:url" content={Astro.url} />
-        <meta property="og:title" content={title} />
+        <meta property="og:title" content={searchTitle} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={new URL(ogImage, Astro.url)} />
 
         <!-- Twitter -->
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content={Astro.url} />
-        <meta property="twitter:title" content={title} />
+        <meta property="twitter:title" content={searchTitle} />
         <meta property="twitter:description" content={description} />
         <meta property="twitter:image" content={new URL(ogImage, Astro.url)} />
 

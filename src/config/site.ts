@@ -3,9 +3,9 @@ import type { SiteConfig, ThemeConfig, SettingsConfig, UmamiAnalyticsConfig, Ana
 export const SITE: SiteConfig = {
     website: "https://linyangsun.github.io/",
     author: "Linyang Sun",
-    desc: "Academic portfolio of Linyang Sun, a PhD researcher studying microbial ecology and host–microbe interactions at the University of Helsinki.",
+    desc: "Linyang Sun is a PhD researcher at the University of Helsinki, studying microbial ecology, host–microbe interactions, pollinator microbiomes, and bioinformatics.",
     title: "Linyang Sun",
-    ogImage: "/favicon.svg",
+    ogImage: "/avatar.webp",
     postPerPage: 5,
     favicon: "/favicon.svg",
     lang: "en",
