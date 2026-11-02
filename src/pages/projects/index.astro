@@ -1,14 +1,32 @@
 ---
-import BaseListing from "../../layouts/BaseListing.astro";
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { PAGES } from "../../config";
 
 if (PAGES.projects.isActive === false) {
     return Astro.redirect("/404");
 }
+
+const tools = await getCollection("projects");
 ---
 
-<BaseListing
-    title={PAGES.projects.title}
-    subtitle={PAGES.projects.subtitle}
-    collection="projects"
-/>
+<BaseLayout title={PAGES.projects.title}>
+    <header class="page-header">
+        <h1 class="page-title">{PAGES.projects.title}</h1>
+    </header>
+    <section class="item-list" aria-label="Research tools">
+        {tools.map((tool) => (
+            <article class="card">
+                <a
+                    class="card-title"
+                    href={tool.data.external_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    {tool.data.title}
+                </a>
+                {tool.data.description && <p class="card-desc">{tool.data.description}</p>}
+            </article>
+        ))}
+    </section>
+</BaseLayout>
