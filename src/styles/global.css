@@ -1153,3 +1153,47 @@ a:hover,
     color: var(--accent);
     border-color: var(--accent);
 }
+
+/* Approximate visitor origins, using Stats4U's live 3D globe. */
+.visitor-globe-panel {
+    width: min(100%, 230px);
+    margin: 1rem auto 0;
+    text-align: center;
+}
+.visitor-globe-canvas {
+    width: 100%;
+    min-height: 210px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.visitor-globe-canvas canvas,
+.visitor-globe-canvas iframe {
+    max-width: 100%;
+}
+.visitor-globe-caption {
+    margin-top: 0.1rem;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+.visitor-globe-caption a {
+    font-size: inherit;
+    margin-left: 0.25rem;
+    text-decoration: underline;
+    font-weight: 500;
+}
+@media (min-width: 1025px) {
+    /* Keep the globe and research cloud reachable on short desktop screens. */
+    .sidebar {
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+}
+@media (max-width: 1024px) {
+    .visitor-globe-panel {
+        margin: 0.9rem 0 0;
+        width: min(100%, 210px);
+    }
+}

@@ -1,0 +1,38 @@
+---
+/**
+ * Stats4U visitor globe.
+ * It counts new page loads and displays approximate visitor locations.
+ * Do not substitute a generic demo site's counter ID.
+ *
+ * Stats4U: https://www.stats4u.net/en/globe
+ * Public statistics: https://www.stats4u.net/live/5162609191
+ *
+ * The provider performs IP geolocation. Our GitHub Pages site does not
+ * receive, publish, or persist individual visitor IP addresses.
+ */
+const counterId = "5162609191";
+---
+
+<section class="visitor-globe-panel" aria-label="Visitor locations around the world">
+    <div class="visitor-globe-canvas" aria-label="Live 3D globe showing approximate visitor locations">
+        <script
+            is:inline
+            data-astro-rerun
+            async
+            src="https://www.stats4u.net/js/globe.js"
+            data-s4uid={counterId}
+            data-size="210"
+            data-lang="en"
+            data-count="1"
+        ></script>
+    </div>
+    <p class="visitor-globe-caption">
+        Visitor locations · approximate
+        <a
+            href="https://www.stats4u.net/en/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Stats4U privacy policy. IP addresses may be held in server logs for up to 14 days."
+        >Privacy</a>
+    </p>
+</section>

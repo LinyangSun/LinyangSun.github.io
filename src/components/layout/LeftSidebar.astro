@@ -3,6 +3,7 @@ import { SITE, SOCIALS, SOCIAL_ICONS } from "../../config";
 import { getCollection } from "astro:content";
 import Icon from "../ui/Icon.astro";
 import ResearchCloud from "../ui/ResearchCloud.astro";
+import VisitorGlobe from "../ui/VisitorGlobe.astro";
 import { Image } from 'astro:assets';
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -78,6 +79,7 @@ const pageViewsBadgeUrl = "https://hits.sh/linyangsun.github.io.svg?view=total&s
                     referrerpolicy="no-referrer"
                 />
             </div>
+            <VisitorGlobe />
             <ResearchCloud />
         </div>
     </div>
