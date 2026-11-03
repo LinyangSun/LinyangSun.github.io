@@ -1183,3 +1183,121 @@ a:hover,
     display: none !important;
 }
 
+
+
+/* Cola's pixel cat furniture, placed beneath the rotating word cloud. */
+.cola-nook {
+    display: flex;
+    position: relative;
+    align-items: flex-end;
+    justify-content: center;
+    width: min(100%, 230px);
+    height: 160px;
+    margin: 0.8rem auto 0;
+    gap: 5px;
+    user-select: none;
+    pointer-events: none;
+}
+.cola-nook::before {
+    content: "";
+    position: absolute;
+    height: 2px;
+    width: 89%;
+    bottom: 8px;
+    left: 5%;
+    background: var(--border);
+}
+.cola-bed {
+    position: relative;
+    width: 128px;
+    height: 116px;
+    flex: 0 0 128px;
+    align-self: end;
+}
+.cola-bed svg {
+    image-rendering: pixelated;
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+.cola-bed-sign {
+    position: absolute;
+    top: 13px;
+    left: 42px;
+    transform: rotate(-5deg);
+    padding: 1px 7px 2px;
+    background: #886548;
+    border: 2px solid #6c4d3a;
+    border-radius: 1px;
+    color: #f4e5c7;
+    font: 700 12px/1.25 "JetBrains Mono", monospace;
+    text-shadow: none;
+    letter-spacing: 0.03em;
+}
+.cola-tree {
+    width: 94px;
+    height: 163px;
+    flex: 0 0 94px;
+}
+.cola-tree svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+.research-cloud {
+    position: relative;
+}
+.research-cloud::after {
+    content: "";
+    display: block;
+    position: absolute;
+    width: 76%;
+    top: 0;
+    left: 12%;
+    height: 3px;
+    border-radius: 2px;
+    opacity: 0.22;
+    background: var(--accent);
+    pointer-events: none;
+}
+/* The cat is a pointer-transparent overlay, free to roam outside the sidebar. */
+.cola-pet {
+    position: fixed;
+    z-index: 35;
+    width: 64px;
+    height: 64px;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    image-rendering: pixelated;
+    transform-origin: top left;
+    will-change: transform;
+    filter: drop-shadow(1px 3px 1px rgb(20 20 27 / 16%));
+}
+.visitor-globe-canvas.cola-globe-play canvas {
+    animation: cola-globe-rock 0.9s ease-in-out infinite alternate;
+    transform-origin: center center;
+}
+@keyframes cola-globe-rock {
+    from { transform: rotate(-1.3deg); }
+    to { transform: rotate(1.3deg); }
+}
+@media (max-width: 1024px) {
+    .cola-nook {
+        margin: 0.7rem 0 0;
+        max-width: 220px;
+        height: 150px;
+    }
+    .cola-tree {
+        height: 150px;
+    }
+}
+@media (max-width: 640px), (prefers-reduced-motion: reduce) {
+    .cola-pet {
+        will-change: auto;
+    }
+    .visitor-globe-canvas.cola-globe-play canvas {
+        animation: none;
+    }
+}

@@ -3,6 +3,7 @@ import { SITE, SOCIALS, SOCIAL_ICONS } from "../../config";
 import { getCollection } from "astro:content";
 import Icon from "../ui/Icon.astro";
 import ResearchCloud from "../ui/ResearchCloud.astro";
+import ColaHome from "../ui/ColaHome.astro";
 import VisitorGlobe from "../ui/VisitorGlobe.astro";
 import { Image } from 'astro:assets';
 import { existsSync } from "node:fs";
@@ -69,6 +70,7 @@ const bio = bioCollection[0]?.data;
             </div>
             <VisitorGlobe />
             <ResearchCloud />
+            {Astro.url.pathname === '/' && <ColaHome />}
         </div>
     </div>
 </aside>

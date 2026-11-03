@@ -76,6 +76,7 @@ const keywords = [
     let lastTime = 0;
     let lastDraw = 0;
     let rotationTime = 0;
+    let lastColaSteps = 0;
     let paused = false;
     let visible = true;
 
@@ -133,6 +134,24 @@ const keywords = [
           const z = point.y * sx + z1 * cx;
           return { ...point, x, y, z };
         }).sort((a, b) => a.z - b.z);
+
+        // Export visual word centers for Cola's playful "moving stair" hops.
+        // These are canvas display coordinates, not analytics or visitor data.
+        if (now - lastColaSteps > 110) {
+          lastColaSteps = now;
+          canvas!.dataset.colaSteps = JSON.stringify(
+            rendered.map((p) => {
+              const depth = (p.z + 1) / 2;
+              const perspective = 0.77 + depth * 0.33;
+              return {
+                x: width / 2 + p.x * width * 0.36 * perspective,
+                y: height / 2 + p.y * height * 0.38 * perspective,
+                depth,
+              };
+            })
+          );
+        }
+
 
         const styles = getComputedStyle(document.documentElement);
         const foreground = styles.getPropertyValue("--foreground").trim() || "#334155";
