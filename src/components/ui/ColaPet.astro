@@ -1,430 +1,533 @@
 ---
 /**
- * Cola is a self-animated pixel pet, not an external tracking widget.
- * She roams across the full visible browser window, with encounters at
- * the visitor globe, rotating word cloud, bed and climbing tree.
- * No network requests, cookies, or persistent state.
+ * Cola: self-animated, pointer-transparent, local pixel cat.
+ * One introductory nap per new site load. Astro navigation carries her
+ * position/activity rather than replaying that introduction.
  */
 ---
 <canvas
   class="cola-pet"
   data-cola-pet
-  width="32"
-  height="32"
+  width="48"
+  height="40"
   role="img"
-  aria-label="Cola, a black pixel cat with a small white patch on her chest"
+  aria-label="Cola, a black pixel cat with long legs and a small white tuft on her chest"
 ></canvas>
 
 <script>
   type Point = { x: number; y: number };
-  type Place = "roam" | "globe" | "cloud" | "bed" | "tree";
-  type Pose = "walk" | "sit" | "sleep" | "paw" | "climb" | "flee";
-  let teardownCola: (() => void) | null = null;
+  type Spot = "roam" | "bed" | "cloud" | "globe" | "wheel";
+  type Mode = "intro" | "walk" | "scene" | "startle" | "escape" | "hopout";
+  type Pose = "sleep" | "sit" | "walk" | "run" | "startled" | "paw" | "jump";
+  type Memory = {
+    x: number;
+    y: number;
+    facing: number;
+    mode: Mode;
+    spot: Spot;
+    destination: Spot;
+    remaining: number;
+  };
 
-  function startCola() {
-    teardownCola?.();
-    teardownCola = null;
+  let colaCleanup: ((remember: boolean) => void) | null = null;
+  let colaMemory: Memory | null = null;
+
+  function mountCola() {
+    colaCleanup?.(false);
+    colaCleanup = null;
+
     const canvas = document.querySelector<HTMLCanvasElement>("[data-cola-pet]");
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
-    const globe = document.querySelector<HTMLElement>(".visitor-globe-canvas");
     const cloud = document.querySelector<HTMLElement>(".research-cloud-viewport");
+    const globe = document.querySelector<HTMLElement>(".visitor-globe-canvas");
     const bed = document.querySelector<HTMLElement>("[data-cola-bed]");
-    const tree = document.querySelector<HTMLElement>("[data-cola-tree]");
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const random = (low: number, high: number) => low + Math.random() * (high - low);
+    const wheel = document.querySelector<HTMLElement>("[data-cola-wheel]");
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const random = (a: number, b: number) => a + Math.random() * (b - a);
     const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-    let initialized = false;
-    let x = Math.min(90, window.innerWidth / 3);
-    let y = window.innerHeight - 28;
-    let facing = 1;
-    let pose: Pose = "sit";
-    let phase: "move" | "pause" | "escape" = "pause";
-    let site: Place = "roam";
-    let target: Place = "roam";
-    let from: Point = { x, y };
-    let to: Point = { x, y };
-    let started = performance.now();
-    let duration = 1;
-    let pauseUntil = started + 1400;
-    let scareCooldown = 0;
-    let playStepAt = 0;
-    let lastFrame = 0;
-    let raf = 0;
-    let pointer: Point | null = null;
-    let lastClicked = false;
-    let visible = true;
-    let cloudStep = -1;
-    let propsVisible = false;
-    let globePlaying = false;
-
-    const rect = (element: Element | null): DOMRect | null =>
-      element ? element.getBoundingClientRect() : null;
-    const within = (r: DOMRect | null) =>
-      !!r && r.width > 10 && r.height > 10 && r.bottom > 65 &&
-      r.top < window.innerHeight - 10 && r.right > 10 && r.left < window.innerWidth - 10;
+    const rect = (e: Element | null): DOMRect | null => e?.getBoundingClientRect() ?? null;
+    const isVisible = (e: Element | null) => {
+      const r = rect(e);
+      return !!r && r.width > 25 && r.height > 25 &&
+        r.bottom > 45 && r.top < window.innerHeight - 4 &&
+        r.right > 20 && r.left < window.innerWidth - 20;
+    };
     const pin = (p: Point): Point => ({
-      x: clamp(p.x, 26, window.innerWidth - 27),
-      y: clamp(p.y, 76, window.innerHeight - 20),
+      x: clamp(p.x, 43, Math.max(44, window.innerWidth - 43)),
+      y: clamp(p.y, 70, Math.max(71, window.innerHeight - 10)),
     });
-    const center = (r: DOMRect): Point => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    const spotElement = (s: Spot): HTMLElement | null => ({
+      roam: null, bed, cloud, globe, wheel
+    })[s];
 
-    // Keep the cat above the page rather than within the sticky, scrollable sidebar.
-    function restingPlace(kind: Place): Point {
-      const g = rect(globe);
-      const c = rect(cloud);
-      const b = rect(bed);
-      const t = rect(tree);
-      if (kind === "globe" && g) return pin({x: g.left + g.width * 0.66, y: g.top + g.height * 0.50});
-      if (kind === "cloud" && c) return pin({x: c.left + c.width * 0.5, y: c.top + 4});
-      if (kind === "bed" && b) return pin({x: b.left + b.width * 0.52, y: b.top + b.height * 0.77});
-      if (kind === "tree" && t) return pin({x: t.left + t.width * 0.55, y: t.top + t.height * 0.82});
-      return pin({x: random(36, Math.max(38, window.innerWidth - 36)), y: random(110, Math.max(112, window.innerHeight - 25))});
+    function spotPoint(s: Spot): Point {
+      const r = rect(spotElement(s));
+      if (r) {
+        if (s === "bed") return pin({ x: r.left + r.width * .50, y: r.top + r.height * .72 });
+        if (s === "cloud") return pin({ x: r.left + r.width * .50, y: r.top + 6 });
+        if (s === "globe") return pin({ x: r.left + r.width * .62, y: r.top + r.height * .58 });
+        if (s === "wheel") return pin({ x: r.left + r.width * .51, y: r.top + r.height * .72 });
+      }
+      return pin({ x: window.innerWidth * .45, y: window.innerHeight * .70 });
     }
 
-    function chooseFreePoint(): Point {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const main = rect(document.querySelector(".main-content"));
-      const lanes = [
-        () => ({ x: random(37, width - 38), y: height - 28 }),
-        () => ({ x: random(37, width - 38), y: clamp(height * random(0.3, 0.72), 92, height - 28) }),
-        () => main ? ({ x: main.left + random(16, Math.max(20, main.width - 28)), y: clamp(main.top + random(70, Math.max(90, height - 90)), 90, height - 28) }) :
-          ({x: width * .55, y: height * .6}),
+    function freePoint(): Point {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const choices = [
+        { x: random(55, Math.max(57, w - 55)), y: h - 21 },
+        { x: random(55, Math.max(57, w - 55)), y: random(h * .36, Math.max(h * .37, h * .74)) },
+        { x: random(w * .38, Math.max(w * .39, w - 60)), y: random(94, Math.max(96, h - 32)) },
       ];
-      return pin(lanes[Math.floor(Math.random() * lanes.length)]());
+      return pin(choices[Math.floor(Math.random() * choices.length)]);
     }
 
-    function pickPlace(): Place {
-      const pool: Place[] = ["roam", "roam", "roam", "roam"];
-      if (within(rect(globe))) pool.push("globe", "globe");
-      if (within(rect(cloud))) pool.push("cloud", "cloud");
-      if (within(rect(bed))) pool.push("bed", "bed");
-      if (within(rect(tree))) pool.push("tree", "tree");
-      return pool[Math.floor(Math.random() * pool.length)];
+    let x = Math.min(180, window.innerWidth * .30);
+    let y = window.innerHeight - 22;
+    let facing = 1;
+    let mode: Mode = "intro";
+    let pose: Pose = "sleep";
+    let scene: Spot = "roam";
+    let destination: Spot = "roam";
+    let origin: Point = { x, y };
+    let to: Point = { x, y };
+    let travelStart = 0;
+    let travelDuration = 1000;
+    let endAt = 0;
+    let wheelCooldown = 0;
+    let scaredUntil = 0;
+    let mouse: Point | null = null;
+    let raf = 0;
+    let lastDraw = 0;
+    let hiddenAt = 0;
+    let cloudHopCount = 0;
+    let nextCloudHop = 0;
+    let hopStart = 0;
+    let hopEnd = 0;
+    let hopFrom: Point = { x, y };
+    let hopTo: Point = { x, y };
+    let wheelActive = false;
+
+    function wheelOff() {
+      wheelActive = false;
+      wheel?.classList.remove("cola-wheel-running");
     }
 
-    function removePlayClass() {
-      if (globePlaying) globe?.classList.remove("cola-globe-play");
-      globePlaying = false;
+    function chooseSpot(previous: Spot): Spot {
+      const choices: Spot[] = ["roam", "roam", "roam"];
+      if (isVisible(bed) && previous !== "bed") choices.push("bed", "bed");
+      if (isVisible(globe) && previous !== "globe") choices.push("globe", "globe");
+      if (isVisible(cloud) && previous !== "cloud") choices.push("cloud", "cloud");
+      if (isVisible(wheel) && performance.now() > wheelCooldown && previous !== "wheel")
+        choices.push("wheel", "wheel", "wheel");
+      return choices[Math.floor(Math.random() * choices.length)];
     }
 
-    function walkTo(next: Place, now: number, forced?: Point) {
-      removePlayClass();
-      target = next;
-      site = "roam";
-      phase = "move";
-      pose = "walk";
-      from = {x, y};
-      to = forced ?? (next === "roam" ? chooseFreePoint() : restingPlace(next));
-      to = pin(to);
-      started = now;
+    function walkTo(next: Spot, now: number, forced?: Point, run = false) {
+      wheelOff();
+      mode = run ? "escape" : "walk";
+      pose = run ? "run" : "walk";
+      destination = next;
+      origin = { x, y };
+      to = pin(forced || (next === "roam" ? freePoint() : spotPoint(next)));
+      travelStart = now;
       const distance = Math.hypot(to.x - x, to.y - y);
-      duration = clamp(distance / random(75, 115) * 1000, 450, 8200);
+      travelDuration = clamp(distance / (run ? 370 : random(95, 140)) * 1000, run ? 360 : 490, run ? 920 : 7400);
       facing = to.x >= x ? 1 : -1;
     }
 
-    function startPause(now: number) {
-      phase = "pause";
-      site = target;
-      pose = site === "bed" ? "sleep" :
-        site === "globe" ? "paw" :
-        site === "tree" ? "climb" : "sit";
-      const min = site === "bed" ? 4500 : site === "roam" ? 1400 : 2600;
-      const max = site === "bed" ? 10500 : site === "roam" ? 4800 : 7900;
-      pauseUntil = now + random(min, max);
-      playStepAt = now + 650;
-      cloudStep = -1;
-      if (site === "globe") {
-        globe?.classList.add("cola-globe-play");
-        globePlaying = true;
+    function startScene(next: Spot, now: number, remaining?: number) {
+      scene = next;
+      destination = next;
+      mode = "scene";
+      cloudHopCount = 0;
+      nextCloudHop = now + 420;
+      hopEnd = 0;
+      if (next === "bed") {
+        pose = "sleep";
+        endAt = now + (remaining ?? 5000);
+      } else if (next === "wheel") {
+        pose = "run";
+        endAt = now + (remaining ?? 5000);
+        wheelActive = true;
+        wheel?.classList.add("cola-wheel-running");
+      } else if (next === "cloud") {
+        pose = "sit";
+        endAt = now + (remaining ?? 6500);
+      } else if (next === "globe") {
+        pose = "walk";
+        endAt = now + (remaining ?? random(3500, 5800));
+      } else {
+        pose = "sit";
+        endAt = now + (remaining ?? random(1400, 3600));
       }
     }
 
-    function getCloudSteps(): Point[] {
-      const area = cloud && rect(cloud);
+    function cloudSteps(): Point[] {
+      const area = rect(cloud);
       if (!area || !cloud) return [];
-      const data = cloud.querySelector<HTMLCanvasElement>(".research-cloud-canvas")?.dataset.colaSteps;
-      if (!data) return [];
+      const raw = cloud.querySelector<HTMLCanvasElement>(".research-cloud-canvas")?.dataset.colaSteps;
+      if (!raw) return [];
       try {
-        const parsed: unknown = JSON.parse(data);
-        if (!Array.isArray(parsed)) return [];
-        return parsed.filter((p: any) => typeof p.x === "number" && typeof p.y === "number" && p.depth > 0.40)
-          .map((p: any) => pin({x: area.left + p.x, y: area.top + p.y - 12}));
-      } catch {
-        return [];
-      }
+        const steps: unknown = JSON.parse(raw);
+        if (!Array.isArray(steps)) return [];
+        return steps.filter((p: any) => Number.isFinite(p.x) && Number.isFinite(p.y) && p.depth > .35)
+          .map((p: any) => pin({ x: area.left + p.x, y: area.top + p.y - 5 }));
+      } catch { return []; }
     }
 
-    function updateScene(now: number, dt: number) {
-      if (site === "cloud") {
-        const steps = now >= playStepAt ? getCloudSteps() : [];
-        if (steps.length && now > playStepAt) {
-          // The rotating words form moving steps under Cola's paws.
-          cloudStep = Math.floor(random(0, steps.length));
-          playStepAt = now + random(900, 1800);
-        }
-        if (cloudStep >= 0 && steps.length) {
-          const next = steps[cloudStep % steps.length];
-          x = lerp(x, next.x, Math.min(0.10, dt / 160));
-          y = lerp(y, next.y - Math.sin(now / 120) * 2.6, Math.min(0.10, dt / 160));
-          facing = next.x >= x ? 1 : -1;
-          pose = "walk";
-        }
-      } else if (site === "globe") {
-        const g = rect(globe);
-        if (g && within(g)) {
-          // Little paw-taps at the ball as the 3D globe keeps spinning.
-          const base = restingPlace("globe");
-          x = lerp(x, base.x + Math.sin(now / 420) * 8, 0.06);
-          y = lerp(y, base.y + Math.sin(now / 240) * 3, 0.06);
-          pose = "paw";
-          facing = -1;
-        }
-      } else if (site === "tree") {
-        const t = rect(tree);
-        if (t && within(t)) {
-          const elapsed = (now - (pauseUntil - 7000)) / 7000;
-          const rung = clamp(Math.floor(((now / 1350) % 4)), 0, 3);
-          const shelf = t.bottom - (t.height * [0.18, 0.47, 0.72, 0.91][rung]);
-          x = lerp(x, t.left + t.width * (rung % 2 ? 0.7 : 0.35), Math.min(0.08, dt / 160));
-          y = lerp(y, shelf, Math.min(0.08, dt / 160));
-          pose = "climb";
-        }
-      } else if (site === "bed") {
-        const b = rect(bed);
-        if (b && within(b)) {
-          const place = restingPlace("bed");
-          x = lerp(x, place.x, 0.04);
-          y = lerp(y, place.y, 0.04);
+    function beginCloudHop(now: number) {
+      const list = cloudSteps();
+      const area = rect(cloud);
+      const next = list.length
+        ? list[Math.floor(Math.random() * list.length)]
+        : area
+          ? pin({ x: random(area.left + 38, area.right - 34), y: random(area.top + 24, area.bottom - 12) })
+          : freePoint();
+      cloudHopCount++;
+      hopFrom = { x, y };
+      hopTo = next;
+      facing = next.x >= x ? 1 : -1;
+      hopStart = now;
+      hopEnd = now + 440;
+      nextCloudHop = now + 820;
+      pose = "jump";
+    }
+
+    function startle(now: number) {
+      if (mode === "startle" || mode === "escape" || mode === "hopout" || now < scaredUntil) return;
+      wheelOff();
+      mode = "startle";
+      pose = "startled";
+      endAt = now + 285;
+      scaredUntil = now + 2400;
+      // Draw synchronously. There is no delayed reaction to the pointer.
+      paint(now);
+    }
+
+    function finishWheel(now: number) {
+      wheelOff();
+      wheelCooldown = now + 14500;
+      scene = "wheel";
+      mode = "hopout";
+      pose = "jump";
+      origin = { x, y };
+      to = pin({ x: x + (facing < 0 ? -105 : 105), y: y + random(12, 45) });
+      facing = to.x >= x ? 1 : -1;
+      travelStart = now;
+      travelDuration = 780;
+      destination = "roam";
+    }
+
+    function nearWheel() {
+      if (!isVisible(wheel)) return false;
+      const p = spotPoint("wheel");
+      return Math.hypot(p.x - x, p.y - y) < 42;
+    }
+
+    function advance(now: number) {
+      if (mouse && mode !== "startle" && mode !== "escape" && mode !== "hopout") {
+        if (Math.hypot(x - mouse.x, y - 29 - mouse.y) < 90) {
+          startle(now);
+          if (mode === "startle") return;
         }
       }
 
-      // The pet is responsive to a nearby mouse, but acts without one.
-      if (pointer && now >= scareCooldown && pose !== "flee") {
-        const dist = Math.hypot(pointer.x - x, pointer.y - (y - 28));
-        if (dist < 90) {
-          scareCooldown = now + 2200;
-          const direction = x >= pointer.x ? 1 : -1;
-          const away = pin({
-            x: x + direction * random(125, 245),
-            y: y + (y < pointer.y ? -1 : 1) * random(45, 110),
-          });
-          walkTo("roam", now, away);
-          pose = "flee";
-          phase = "escape";
-          duration = random(500, 850);
+      if (mode === "intro") {
+        pose = "sleep";
+        if (now >= endAt) walkTo(chooseSpot("cloud"), now);
+      } else if (mode === "startle") {
+        pose = "startled";
+        if (now >= endAt) {
+          const away = mouse
+            ? pin({ x: x + (x >= mouse.x ? 1 : -1) * 200, y: y + (y >= mouse.y ? 1 : -1) * 55 })
+            : freePoint();
+          walkTo("roam", now, away, true);
+        }
+      } else if (mode === "walk" || mode === "escape" || mode === "hopout") {
+        const progress = clamp((now - travelStart) / travelDuration, 0, 1);
+        const ease = mode === "hopout" ? progress : progress * progress * (3 - 2 * progress);
+        x = lerp(origin.x, to.x, ease);
+        y = lerp(origin.y, to.y, ease);
+        // Ordinary walking stays on the ground: only the wheel exit is a jump.
+        if (mode === "hopout") y -= 36 * Math.sin(Math.PI * progress);
+        pose = mode === "hopout" ? "jump" : mode === "escape" ? "run" : "walk";
+
+        // Enter the treadmill scene as soon as Cola reaches its opening.
+        if (mode === "walk" && now > wheelCooldown && nearWheel()) {
+          const w = spotPoint("wheel");
+          x = w.x; y = w.y;
+          startScene("wheel", now);
           return;
         }
-      }
 
-      if (now >= pauseUntil) {
-        walkTo(pickPlace(), now);
+        if (progress >= 1) {
+          if (mode === "escape" || mode === "hopout") {
+            startScene("roam", now);
+          } else if (destination !== "roam" && isVisible(spotElement(destination))) {
+            startScene(destination, now);
+          } else {
+            startScene("roam", now);
+          }
+        }
+      } else if (mode === "scene") {
+        if (scene === "wheel") {
+          pose = "run";
+          const w = spotPoint("wheel");
+          x = lerp(x, w.x, .13);
+          y = lerp(y, w.y, .13);
+          if (now >= endAt) finishWheel(now);
+        } else if (scene === "bed") {
+          pose = "sleep";
+          const p = spotPoint("bed");
+          x = lerp(x, p.x, .06); y = lerp(y, p.y, .06);
+          if (now >= endAt) walkTo(chooseSpot("bed"), now);
+        } else if (scene === "cloud") {
+          if (cloudHopCount < 5 && now >= nextCloudHop) beginCloudHop(now);
+          if (now < hopEnd) {
+            const t = clamp((now - hopStart) / 440, 0, 1);
+            x = lerp(hopFrom.x, hopTo.x, t);
+            y = lerp(hopFrom.y, hopTo.y, t) - 21 * Math.sin(Math.PI * t);
+            pose = "jump";
+          } else if (cloudHopCount >= 5) {
+            walkTo(chooseSpot("cloud"), now);
+          } else {
+            pose = "sit";
+          }
+        } else if (scene === "globe") {
+          pose = "walk";
+          const g = rect(globe);
+          if (g && isVisible(globe)) {
+            const elapsed = endAt - now;
+            const angle = now / 420;
+            const centerX = g.left + g.width * .54;
+            const centerY = g.top + g.height * .57;
+            x = lerp(x, centerX + Math.cos(angle) * g.width * .21, .11);
+            y = lerp(y, centerY + Math.sin(angle) * g.height * .15, .11);
+            facing = Math.sin(angle) > 0 ? -1 : 1;
+          }
+          if (now >= endAt) walkTo(chooseSpot("globe"), now);
+        } else {
+          pose = "sit";
+          if (now >= endAt) walkTo(chooseSpot("roam"), now);
+        }
       }
     }
 
-    // Pixel-art sprite, intentionally drawn locally without image assets.
-    // Black fur, violet outlines, green eyes, and one white chest tuft.
-    function draw(now: number) {
-      ctx!.clearRect(0, 0, 32, 32);
+    function paint(now: number) {
+      ctx!.clearRect(0, 0, 48, 40);
       ctx!.save();
-      if (facing < 0) { ctx!.translate(32, 0); ctx!.scale(-1, 1); }
-      const ink = "#171722";
-      const fur = "#272736";
-      const shade = "#3f3e51";
-      const shine = "#606074";
-      const eye = "#b3e99a";
-      const inner = "#9d6887";
-      const white = "#f9f9f3";
-      const nose = "#e2a4b1";
-      const p = (x: number, y: number, w: number, h: number, color: string) => {
+      if (facing < 0) { ctx!.translate(48, 0); ctx!.scale(-1, 1); }
+      const ink = "#17161e";
+      const fur = "#252431";
+      const shade = "#494656";
+      const highlight = "#696678";
+      const eye = "#b5eb94";
+      const pink = "#d99ca9";
+      const tuft = "#f7f6f2";
+      const px = (a: number, b: number, w: number, h: number, color: string) => {
         ctx!.fillStyle = color;
-        ctx!.fillRect(x, y, w, h);
+        ctx!.fillRect(Math.round(a), Math.round(b), w, h);
       };
-      const moving = pose === "walk" || pose === "flee" || pose === "climb";
-      const phaseStep = Math.floor(now / (pose === "flee" ? 90 : 160)) % 2;
-      const bob = moving ? phaseStep : 0;
-      const sleeping = pose === "sleep";
-      const blinking = sleeping || Math.floor(now / 2700) % 7 === 0 && Math.floor(now / 170) % 4 === 0;
+      const moving = pose === "walk" || pose === "run";
+      const speed = pose === "run" ? 76 : 160;
+      const swing = moving ? Math.sin(now / speed) : 0;
+      const step = moving ? Math.round(swing * (pose === "run" ? 5 : 3)) : 0;
+      const opposite = -step;
+      const bob = moving ? Math.round(Math.abs(Math.sin(now / speed)) * 1) : 0;
+      const startled = pose === "startled";
+      const sleep = pose === "sleep";
+      const jump = pose === "jump";
+      const blink = sleep || (!startled && Math.floor(now / 3200) % 6 === 0 &&
+        Math.floor(now / 130) % 4 === 0);
 
-      // Curled tail, which swishes even when she is sitting.
-      const tailLift = Math.round(Math.sin(now / 340) * (sleeping ? 1 : 2));
-      p(23, 23 + tailLift, 4, 4, ink);
-      p(26, 18 + tailLift, 4, 7, ink);
-      p(28, 14 + tailLift, 3, 5, fur);
-      p(27, 12 + tailLift, 4, 3, shade);
+      // Side-on silhouette: tail on the left, muzzle on the right.
+      const bodyTop = startled ? 12 : sleep ? 23 : 17 + bob;
+      // Tail sways during movement and fluffs up when startled.
+      const swish = startled ? -4 : Math.round(Math.sin(now / 340) * 2);
+      px(6, 20 + swish, startled ? 7 : 5, startled ? 8 : 5, ink);
+      px(4, 17 + swish, 4, 7, fur);
+      px(7, 14 + swish, 5, 6, fur);
+      px(9, 17 + swish, 6, 6, shade);
 
-      // Resting posture is curled and low.
-      if (sleeping) {
-        p(8, 22, 18, 8, ink);
-        p(10, 21, 15, 7, fur);
-        p(14, 23, 4, 3, white);
-        p(6, 17, 18, 8, ink);
-        p(7, 14, 4, 5, ink);
-        p(18, 14, 4, 5, ink);
-        p(8, 18, 14, 5, fur);
-        p(10, 20, 3, 1, shine);
-        p(18, 20, 3, 1, shine);
-        p(15, 22, 2, 1, nose);
-        p(6, 27, 21, 3, shade);
+      if (sleep) {
+        px(11, 25, 28, 10, ink);
+        px(13, 24, 24, 8, fur);
+        px(29, 19, 13, 12, ink);
+        px(31, 16, 4, 7, ink);
+        px(38, 16, 4, 7, ink);
+        px(31, 23, 10, 6, fur);
+        px(34, 27, 3, 2, tuft);
+        px(39, 27, 2, 1, pink);
+        px(33, 25, 4, 1, shade);
+        px(37, 25, 4, 1, shade);
+        ctx!.restore();
+        return;
+      }
+
+      // Far legs first. Four long legs alternate in diagonal pairs.
+      const farBack = moving ? -step : 0;
+      const farFront = moving ? step : 0;
+      px(18 + farBack, 25 + bob, 4, 12 - bob, shade);
+      px(17 + farBack, 36, 7, 2, ink);
+      px(31 + farFront, 24 + bob, 4, 13 - bob, shade);
+      px(30 + farFront, 36, 7, 2, ink);
+
+      // Torso is drawn over the upper legs, with a slightly raised back.
+      if (startled) {
+        px(11, 14, 21, 15, ink);
+        px(15, 11, 17, 12, fur);
+        px(19, 9, 8, 6, fur);
       } else {
-        // Hind legs, body and front paws.
-        p(9, 19 + bob, 17, 11, ink);
-        p(11, 19 + bob, 13, 9, fur);
-        p(10, 24 + bob, 4, 7 - bob, fur);
-        p(20, 24 + (moving ? 1 - bob : 0), 4, 7, fur);
-        p(10, 29, 6, 2, ink);
-        p(19, 29, 6, 2, ink);
-        p(12, 20 + bob, 3, 6, shade);
+        px(10, bodyTop, 28, 12, ink);
+        px(13, bodyTop + 1, 23, 10, fur);
+        px(15, bodyTop + 1, 12, 2, shade);
+      }
 
-        // Small white tuft under the chin, deliberately unmistakable.
-        p(15, 21 + bob, 4, 3, white);
-        p(16, 24 + bob, 3, 2, white);
-        p(17, 26 + bob, 1, 2, white);
+      const nearBack = moving ? step : 0;
+      const nearFront = moving ? opposite : 0;
+      px(14 + nearBack, 25 + bob, 5, 12 - bob, fur);
+      px(13 + nearBack, 36, 9, 3, ink);
+      px(35 + nearFront, 25 + bob, 5, 12 - bob, fur);
+      px(34 + nearFront, 36, 9, 3, ink);
+      if (jump) {
+        // Reaching paws while airborne.
+        px(17, 26, 8, 5, fur);
+        px(30, 26, 10, 5, fur);
+      }
 
-        // Triangular cat ears, outlined one pixel at a time.
-        p(7, 5 + bob, 6, 7, ink);
-        p(19, 5 + bob, 6, 7, ink);
-        p(8, 7 + bob, 3, 4, inner);
-        p(21, 7 + bob, 3, 4, inner);
-        p(6, 11 + bob, 20, 12, ink);
-        p(8, 12 + bob, 17, 10, fur);
-        p(9, 12 + bob, 13, 2, shade);
-        p(10, 15 + bob, 3, 3, blinking ? fur : eye);
-        p(20, 15 + bob, 3, 3, blinking ? fur : eye);
-        if (!blinking) {
-          p(11, 15 + bob, 1, 3, ink);
-          p(21, 15 + bob, 1, 3, ink);
-        } else {
-          p(10, 17 + bob, 3, 1, shade);
-          p(20, 17 + bob, 3, 1, shade);
-        }
-        p(16, 18 + bob, 2, 2, nose);
-        p(14, 20 + bob, 2, 1, shine);
-        p(18, 20 + bob, 2, 1, shine);
-        p(5, 19 + bob, 4, 1, shade);
-        p(24, 19 + bob, 4, 1, shade);
-        if (pose === "paw") {
-          p(7, 19 + bob, 5, 4, fur);
-          p(5 + phaseStep * 2, 16 + bob, 5, 3, fur);
-        }
-        if (pose === "climb") {
-          p(7, 17 + bob, 5, 4, shade);
-          p(23, 17 + bob, 5, 4, shade);
-        }
-        p(12, 10 + bob, 4, 1, shine);
+      // One visible side eye, not a permanently front-facing head.
+      px(30, 10 + bob, 13, 15, ink);
+      px(31, startled ? 7 : 5, 5, 8, ink);
+      px(38, startled ? 8 : 5, 5, 8, ink);
+      px(33, startled ? 10 : 8, 2, 4, pink);
+      px(39, startled ? 10 : 8, 2, 4, pink);
+      px(31, 12 + bob, 11, 12, fur);
+      px(33, 12 + bob, 5, 2, shade);
+      if (blink) px(38, 17 + bob, 3, 1, highlight);
+      else {
+        px(38, 15 + bob, startled ? 4 : 3, startled ? 4 : 3, eye);
+        px(40, 15 + bob, 1, startled ? 4 : 3, ink);
+      }
+      px(43, 19 + bob, 3, 2, pink);
+      px(40, 22 + bob, 3, 1, highlight);
+      // Small white chest tuft below the chin.
+      px(33, 24 + bob, 5, 3, tuft);
+      px(35, 27 + bob, 3, 2, tuft);
+      px(36, 29 + bob, 1, 2, tuft);
+      if (startled) {
+        // Sudden raised fur and exclamation pixels.
+        px(18, 8, 3, 3, shade);
+        px(25, 7, 2, 4, shade);
+        px(41, 0, 3, 7, "#dc8d52");
+        px(41, 9, 3, 3, "#dc8d52");
+      }
+      if (pose === "run") {
+        px(13, 17, 3, 2, highlight);
       }
       ctx!.restore();
     }
 
-    function move(now: number) {
-      const progress = clamp((now - started) / duration, 0, 1);
-      // Gentle hopping between page surfaces; no snapping on arrival.
-      const eased = progress * progress * (3 - 2 * progress);
-      x = lerp(from.x, to.x, eased);
-      const d = Math.hypot(from.x - to.x, from.y - to.y);
-      const arc = d > 65 ? Math.min(34, d * 0.075) * Math.sin(Math.PI * progress) : 0;
-      y = lerp(from.y, to.y, eased) - arc;
-      if (progress >= 1) startPause(now);
+    function display(now: number) {
+      const bounce = pose === "run" ? Math.round(Math.sin(now / 76)) : 0;
+      canvas!.style.transform = "translate3d(" + Math.round(x - 38) + "px, " +
+        Math.round(y - 64 - bounce) + "px, 0)";
+      paint(now);
     }
 
     function tick(now: number) {
       raf = requestAnimationFrame(tick);
-      if (document.visibilityState !== "visible") { lastFrame = now; return; }
-      const dt = Math.min(now - (lastFrame || now), 60);
-      if (now - lastFrame < 32) return;
-      lastFrame = now;
-
-      if (!initialized) return;
-      if (phase === "move" || phase === "escape") move(now);
-      else updateScene(now, dt);
-
-      const spriteBounce = (pose === "walk" || pose === "flee") ? Math.abs(Math.sin(now / 115)) * 2.5 : 0;
-      canvas!.style.transform = "translate3d(" + Math.round(x - 32) + "px, " +
-        Math.round(y - 60 - spriteBounce) + "px, 0)";
-      if (phase !== "pause") pose = pose === "flee" ? "flee" : "walk";
-      draw(now);
+      if (document.visibilityState !== "visible") return;
+      if (now - lastDraw < 30) return;
+      lastDraw = now;
+      advance(now);
+      display(now);
     }
 
-    function onPointer(event: PointerEvent) {
+    function pointerMoved(event: PointerEvent) {
       if (event.pointerType !== "mouse") return;
-      pointer = { x: event.clientX, y: event.clientY };
-      // Mouse movement interrupts the scene only when the cursor actually approaches Cola.
-      const dist = Math.hypot(pointer.x - x, pointer.y - (y - 30));
-      if (dist < 85 && performance.now() > scareCooldown) {
-        const now = performance.now();
-        scareCooldown = now + 2500;
-        walkTo("roam", now, pin({
-          x: x + (x >= pointer.x ? 1 : -1) * random(100, 180),
-          y: y + (y >= pointer.y ? 1 : -1) * random(25, 75),
-        }));
-        phase = "escape";
-        pose = "flee";
-        duration = random(550, 850);
+      mouse = { x: event.clientX, y: event.clientY };
+      if (Math.hypot(x - mouse.x, y - 29 - mouse.y) < 90) startle(performance.now());
+    }
+    function pointerLeft() { mouse = null; }
+    function visibilityChanged() {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = performance.now();
+      } else if (hiddenAt) {
+        const elapsed = performance.now() - hiddenAt;
+        endAt += elapsed;
+        travelStart += elapsed;
+        nextCloudHop += elapsed;
+        hopStart += elapsed;
+        hopEnd += elapsed;
+        hiddenAt = 0;
       }
     }
 
-    function onVisibility() {
-      lastFrame = performance.now();
-    }
-    window.addEventListener("pointermove", onPointer, { passive: true });
-    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pointermove", pointerMoved, { passive: true });
+    window.addEventListener("pointerout", pointerLeft, { passive: true });
+    document.addEventListener("visibilitychange", visibilityChanged);
 
-    // Cola is visible immediately: curled up at the word cloud's upper ledge.
-    // Start drawing before the first animation frame so the cat never flashes away.
     const now = performance.now();
-    if (cloud) {
-      const p = restingPlace("cloud");
-      x = p.x;
-      y = p.y;
-      target = "cloud";
+    if (colaMemory) {
+      // Astro client-side navigation preserves Cola's position and activity.
+      const memory = colaMemory;
+      colaMemory = null;
+      x = pin({ x: memory.x, y: memory.y }).x;
+      y = pin({ x: memory.x, y: memory.y }).y;
+      facing = memory.facing;
+      if (memory.mode === "scene" && memory.spot !== "roam" &&
+          isVisible(spotElement(memory.spot))) {
+        startScene(memory.spot, now, Math.max(300, memory.remaining));
+      } else if (memory.mode === "walk" || memory.mode === "escape" ||
+          memory.mode === "hopout") {
+        walkTo(memory.destination, now);
+        travelDuration = Math.max(350, memory.remaining);
+      } else {
+        startScene("roam", now, Math.min(Math.max(memory.remaining, 500), 2600));
+      }
     } else {
-      const p = restingPlace(within(rect(bed)) ? "bed" : "roam");
-      x = p.x;
-      y = p.y;
-      target = within(rect(bed)) ? "bed" : "roam";
+      // Exactly one entrance scene when the website is first loaded.
+      const first = isVisible(cloud) ? spotPoint("cloud") : isVisible(bed) ? spotPoint("bed") : pin({ x, y });
+      x = first.x; y = first.y;
+      mode = "intro";
+      pose = "sleep";
+      scene = "cloud";
+      destination = "cloud";
+      endAt = now + random(3200, 5000);
     }
-    startPause(now);
-    pose = "sleep";
-    pauseUntil = now + random(3500, 6000);
-    playStepAt = pauseUntil - 950;
-    canvas.style.transform = "translate3d(" + Math.round(x - 32) +
-      "px, " + Math.round(y - 60) + "px, 0)";
-    draw(now);
+    display(now);
 
-    // Honor reduced-motion settings. On compact screens display Cola
-    // resting instead of running over navigation or article text.
-    if (mq.matches || window.innerWidth < 590) {
-      teardownCola = () => {
-        window.removeEventListener("pointermove", onPointer);
-        document.removeEventListener("visibilitychange", onVisibility);
-        removePlayClass();
+    if (!prefersReducedMotion.matches && window.innerWidth >= 590) {
+      raf = requestAnimationFrame(tick);
+    }
+
+    colaCleanup = (remember: boolean) => {
+      if (remember) colaMemory = {
+        x, y, facing, mode, spot: scene, destination,
+        remaining: mode === "walk" || mode === "escape" || mode === "hopout"
+          ? Math.max(0, travelDuration - (performance.now() - travelStart))
+          : Math.max(0, endAt - performance.now()),
       };
-      return;
-    }
-
-    initialized = true;
-    raf = requestAnimationFrame(tick);
-    teardownCola = () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("pointermove", onPointer);
-      document.removeEventListener("visibilitychange", onVisibility);
-      removePlayClass();
+      wheelOff();
+      window.removeEventListener("pointermove", pointerMoved);
+      window.removeEventListener("pointerout", pointerLeft);
+      document.removeEventListener("visibilitychange", visibilityChanged);
     };
   }
 
-  document.addEventListener("astro:page-load", startCola);
+  document.addEventListener("astro:page-load", mountCola);
   document.addEventListener("astro:before-swap", () => {
-    teardownCola?.();
-    teardownCola = null;
+    colaCleanup?.(true);
+    colaCleanup = null;
   });
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startCola, { once: true });
+    document.addEventListener("DOMContentLoaded", mountCola, { once: true });
   } else {
-    startCola();
+    mountCola();
   }
 </script>

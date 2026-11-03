@@ -1231,23 +1231,33 @@ a:hover,
     font: 700 10px/1.3 "JetBrains Mono", monospace;
     text-shadow: none;
 }
-/* Cat climbing tree sits in the open space after Tags in the navigation. */
-.cola-navbar-tree {
-    width: 66px;
-    height: 78px;
+/* Larger pixel running wheel replaces the small climbing tree near Tags. */
+.cola-navbar-wheel {
+    width: 132px;
+    height: 118px;
     margin-left: auto;
-    flex: 0 0 66px;
+    flex: 0 0 132px;
     pointer-events: none;
     user-select: none;
     display: flex;
     justify-content: center;
     align-items: center;
 }
-.cola-navbar-tree svg {
+.cola-navbar-wheel svg {
     display: block;
-    width: 60px;
-    height: 76px;
+    width: 126px;
+    height: 117px;
     image-rendering: pixelated;
+}
+.cola-wheel-rotor {
+    transform-origin: 80px 69px;
+}
+.cola-navbar-wheel.cola-wheel-running .cola-wheel-rotor {
+    animation: cola-wheel-turn .68s linear infinite;
+}
+@keyframes cola-wheel-turn {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 .research-cloud {
     position: relative;
@@ -1269,7 +1279,7 @@ a:hover,
 .cola-pet {
     position: fixed;
     z-index: 35;
-    width: 64px;
+    width: 76px;
     height: 64px;
     top: 0;
     left: 0;
@@ -1295,7 +1305,7 @@ a:hover,
 }
 @media (max-width: 760px) {
     /* Don't squeeze the seven navigation links on smaller screens. */
-    .cola-navbar-tree {
+    .cola-navbar-wheel {
         display: none;
     }
 }
@@ -1303,7 +1313,8 @@ a:hover,
     .cola-pet {
         will-change: auto;
     }
-    .visitor-globe-canvas.cola-globe-play canvas {
+    .visitor-globe-canvas.cola-globe-play canvas,
+    .cola-navbar-wheel.cola-wheel-running .cola-wheel-rotor {
         animation: none;
     }
 }
