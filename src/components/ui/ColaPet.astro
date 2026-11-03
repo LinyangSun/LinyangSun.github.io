@@ -110,6 +110,7 @@
     let hopFrom: Point = { x, y };
     let hopTo: Point = { x, y };
     let wheelActive = false;
+    const encounterCooldown: Partial<Record<Spot, number>> = {};
 
     function wheelOff() {
       wheelActive = false;
@@ -127,6 +128,7 @@
     }
 
     function walkTo(next: Spot, now: number, forced?: Point, run = false) {
+      if (mode === "scene") encounterCooldown[scene] = now + 8000;
       wheelOff();
       mode = run ? "escape" : "walk";
       pose = run ? "run" : "walk";
@@ -211,6 +213,7 @@
     function finishWheel(now: number) {
       wheelOff();
       wheelCooldown = now + 14500;
+      encounterCooldown.wheel = wheelCooldown;
       scene = "wheel";
       mode = "hopout";
       pose = "jump";
@@ -256,12 +259,22 @@
         if (mode === "hopout") y -= 36 * Math.sin(Math.PI * progress);
         pose = mode === "hopout" ? "jump" : mode === "escape" ? "run" : "walk";
 
-        // Enter the treadmill scene as soon as Cola reaches its opening.
-        if (mode === "walk" && now > wheelCooldown && nearWheel()) {
-          const w = spotPoint("wheel");
-          x = w.x; y = w.y;
-          startScene("wheel", now);
-          return;
+        // A scene starts on contact, even if Cola was headed somewhere else.
+        // Recently visited spots are ignored briefly to avoid getting stuck.
+        if (mode === "walk") {
+          const encounters: Spot[] = ["wheel", "bed", "cloud", "globe"];
+          for (const spot of encounters) {
+            if (!isVisible(spotElement(spot)) ||
+                now < (encounterCooldown[spot] || 0) ||
+                (spot === "wheel" && now < wheelCooldown)) continue;
+            const place = spotPoint(spot);
+            const threshold = spot === "globe" ? 53 : spot === "wheel" ? 52 : 39;
+            if (Math.hypot(place.x - x, place.y - y) <= threshold) {
+              if (spot === "wheel") { x = place.x; y = place.y; }
+              startScene(spot, now);
+              return;
+            }
+          }
         }
 
         if (progress >= 1) {
