@@ -13,12 +13,19 @@
   role="img"
   aria-label="Cola, a lively pixel black cat with yellow eyes and a tiny white chest tuft"
 ></canvas>
+<span class="cola-avatar-poop" data-cola-poop aria-hidden="true">
+  <svg viewBox="0 0 14 14" width="14" height="14" focusable="false">
+    <path d="M2 10H12V12H2Z M3 8H11V10H3Z M5 6H10V8H5Z M6 4H9V6H6Z" fill="#70503d"/>
+    <path d="M5 8H9V9H5Z M6 6H8V7H6Z" fill="#af8061"/>
+    <rect x="5" y="10" width="2" height="1" fill="#a97b5d"/>
+  </svg>
+</span>
 
 <script>
   type Point = { x: number; y: number };
-  type Spot = "roam" | "bed" | "cloud" | "globe" | "wheel" | "ball";
-  type Mode = "intro" | "walk" | "scene" | "startle" | "escape" | "hopout" | "chase";
-  type Pose = "sleep" | "sit" | "walk" | "run" | "startled" | "paw" | "jump";
+  type Spot = "roam" | "bed" | "cloud" | "globe" | "wheel" | "ball" | "avatar";
+  type Mode = "intro" | "walk" | "scene" | "startle" | "escape" | "hopout" | "chase" | "sprint";
+  type Pose = "sleep" | "sit" | "walk" | "run" | "startled" | "paw" | "jump" | "squat" | "bury";
   type Memory = {
     x: number;
     y: number;
@@ -27,6 +34,7 @@
     spot: Spot;
     destination: Spot;
     remaining: number;
+    nextAvatarVisit: number;
   };
 
   let colaCleanup: ((remember: boolean) => void) | null = null;
@@ -45,6 +53,8 @@
     const bed = document.querySelector<HTMLElement>("[data-cola-bed]");
     const wheel = document.querySelector<HTMLElement>("[data-cola-wheel]");
     const ball = document.querySelector<HTMLElement>("[data-cola-ball]");
+    const avatar = document.querySelector<HTMLElement>(".sidebar-avatar");
+    const poop = document.querySelector<HTMLElement>("[data-cola-poop]");
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const random = (a: number, b: number) => a + Math.random() * (b - a);
     const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
@@ -61,7 +71,7 @@
       y: clamp(p.y, 70, Math.max(71, window.innerHeight - 10)),
     });
     const spotElement = (s: Spot): HTMLElement | null => ({
-      roam: null, bed, cloud, globe, wheel, ball
+      roam: null, bed, cloud, globe, wheel, ball, avatar
     })[s];
 
     function ballPosition(): Point | null {
@@ -76,6 +86,7 @@
       if (s === "ball") return ballPosition() ?? freePoint();
       const r = rect(spotElement(s));
       if (r) {
+        if (s === "avatar") return pin({ x: r.left + r.width * .45, y: r.top + 10 });
         if (s === "bed") return pin({ x: r.left + r.width * .50, y: r.top + r.height * .72 });
         if (s === "cloud") return pin({ x: r.left + r.width * .50, y: r.top + 6 });
         if (s === "globe") return pin({ x: r.left + r.width * .62, y: r.top + r.height * .58 });
@@ -125,7 +136,20 @@
     let nextBallTap = 0;
     let swatUntil = 0;
     let chaseCooldown = 0;
+    const avatarSceneDuration = 6400;
+    let avatarSceneStart = 0;
+    let nextAvatarVisit = performance.now() + random(17000, 28000);
     const encounterCooldown: Partial<Record<Spot, number>> = {};
+
+    function setPoopVisible(show: boolean, burying = false) {
+      if (!poop) return;
+      poop.classList.toggle("is-visible", show);
+      poop.classList.toggle("is-burying", show && burying);
+      if (show) {
+        poop.style.transform = "translate3d(" + Math.round(x + 26) + "px, " +
+          Math.round(y - 9) + "px, 0)";
+      }
+    }
 
     function wheelOff() {
       wheelActive = false;
@@ -133,6 +157,9 @@
     }
 
     function chooseSpot(previous: Spot): Spot {
+      // The avatar visit is an occasional event, not a constant loop.
+      if (isVisible(avatar) && previous !== "avatar" && performance.now() >= nextAvatarVisit)
+        return "avatar";
       const choices: Spot[] = ["roam", "roam", "roam"];
       if (isVisible(bed) && previous !== "bed") choices.push("bed", "bed");
       if (isVisible(globe) && previous !== "globe") choices.push("globe", "globe");
@@ -146,24 +173,30 @@
 
     function walkTo(next: Spot, now: number, forced?: Point, run = false) {
       if (mode === "scene") encounterCooldown[scene] = now + 8000;
+      setPoopVisible(false);
       if (next === "ball" && ballPosition()) {
         beginBallChase(now);
         return;
       }
       wheelOff();
-      mode = run ? "escape" : "walk";
-      pose = run ? "run" : "walk";
+      mode = run ? "escape" : next === "avatar" ? "sprint" : "walk";
+      pose = run || next === "avatar" ? "run" : "walk";
       destination = next;
       origin = { x, y };
       to = pin(forced || (next === "roam" ? freePoint() : spotPoint(next)));
       travelStart = now;
       const distance = Math.hypot(to.x - x, to.y - y);
-      travelDuration = clamp(distance / (run ? 370 : random(95, 140)) * 1000, run ? 360 : 490, run ? 920 : 7400);
+      travelDuration = clamp(
+        distance / (run ? 370 : next === "avatar" ? 285 : random(95, 140)) * 1000,
+        run || next === "avatar" ? 450 : 490,
+        run ? 920 : next === "avatar" ? 2500 : 7400
+      );
       facing = to.x >= x ? 1 : -1;
     }
 
     function beginBallChase(now: number, remaining?: number) {
       if (!ballPosition()) return;
+      setPoopVisible(false);
       wheelOff();
       mode = "chase";
       pose = "run";
@@ -190,7 +223,14 @@
       cloudHopCount = 0;
       nextCloudHop = now + 420;
       hopEnd = 0;
-      if (next === "bed") {
+      setPoopVisible(false);
+      if (next === "avatar") {
+        const remainingTime = remaining ?? avatarSceneDuration;
+        avatarSceneStart = now - Math.max(0, avatarSceneDuration - remainingTime);
+        endAt = now + remainingTime;
+        facing = -1;
+        pose = "sit";
+      } else if (next === "bed") {
         pose = "sleep";
         endAt = now + (remaining ?? 5000);
       } else if (next === "wheel") {
@@ -243,6 +283,8 @@
 
     function startle(now: number) {
       if (mode === "startle" || mode === "escape" || mode === "hopout" || now < scaredUntil) return;
+      if (mode === "scene" && scene === "avatar") nextAvatarVisit = now + 35000;
+      setPoopVisible(false);
       wheelOff();
       mode = "startle";
       pose = "startled";
@@ -333,14 +375,14 @@
             : freePoint();
           walkTo("roam", now, away, true);
         }
-      } else if (mode === "walk" || mode === "escape" || mode === "hopout") {
+      } else if (mode === "walk" || mode === "escape" || mode === "hopout" || mode === "sprint") {
         const progress = clamp((now - travelStart) / travelDuration, 0, 1);
         const ease = mode === "hopout" ? progress : progress * progress * (3 - 2 * progress);
         x = lerp(origin.x, to.x, ease);
         y = lerp(origin.y, to.y, ease);
         // Ordinary walking stays on the ground: only the wheel exit is a jump.
         if (mode === "hopout") y -= 36 * Math.sin(Math.PI * progress);
-        pose = mode === "hopout" ? "jump" : mode === "escape" ? "run" : "walk";
+        pose = mode === "hopout" ? "jump" : mode === "escape" || mode === "sprint" ? "run" : "walk";
 
         // A scene starts on contact, even if Cola was headed somewhere else.
         // Recently visited spots are ignored briefly to avoid getting stuck.
@@ -376,7 +418,44 @@
           }
         }
       } else if (mode === "scene") {
-        if (scene === "wheel") {
+        if (scene === "avatar") {
+          if (!isVisible(avatar)) {
+            setPoopVisible(false);
+            nextAvatarVisit = now + 60000;
+            walkTo("roam", now);
+            return;
+          }
+          const perch = spotPoint("avatar");
+          x = lerp(x, perch.x, .18);
+          y = lerp(y, perch.y, .18);
+          const elapsed = now - avatarSceneStart;
+          if (elapsed < 750) {
+            pose = "sit";
+            facing = -1;
+            setPoopVisible(false);
+          } else if (elapsed < 2250) {
+            pose = "squat";
+            facing = -1;
+            setPoopVisible(false);
+          } else if (elapsed < 3100) {
+            pose = "squat";
+            facing = -1;
+            setPoopVisible(true);
+          } else if (elapsed < 5480) {
+            pose = "bury";
+            facing = 1;
+            setPoopVisible(true, true);
+          } else {
+            pose = "sit";
+            facing = 1;
+            setPoopVisible(false);
+          }
+          if (now >= endAt) {
+            setPoopVisible(false);
+            nextAvatarVisit = now + random(75000, 120000);
+            walkTo("roam", now);
+          }
+        } else if (scene === "wheel") {
           pose = "run";
           const w = spotPoint("wheel");
           x = lerp(x, w.x, .13);
@@ -507,6 +586,15 @@
         p(4, 9, 2, 3, yellow); p(8, 9, 2, 3, yellow);
         p(7, 12, 1, 1, nose); p(10, 13, 1, 1, white);
         p(13, 4, 2, 2, "#d88e55"); p(13, 1, 2, 2, "#d88e55");
+      } else if (pose === "squat") {
+        // Low crouch with a raised tail, a separate silhouette for this scene.
+        p(19, 12, 3, 5, ink); p(21, 7, 2, 7, ink); p(22, 5, 2, 4, fur);
+        p(9, 11, 11, 6, ink); p(10, 12, 10, 5, fur);
+        p(12, 16, 8, 3, ink); p(7, 15, 4, 4, ink);
+        p(2, 4, 3, 5, ink); p(8, 4, 3, 5, ink);
+        p(2, 8, 10, 7, ink); p(3, 9, 8, 5, fur);
+        p(4, 10, 2, 2, yellow); p(8, 10, 2, 2, yellow);
+        p(7, 13, 1, 1, nose); p(10, 14, 1, 1, white);
       } else if (pose === "sit") {
         // A second sitting silhouette, head turned sideways.
         const wag = Math.round(Math.sin(now / 390));
@@ -553,6 +641,14 @@
           p(8, 14, 3, 3, fur);
           p(6, 12 + (frame % 2), 3, 3, ink);
         }
+        if (pose === "bury") {
+          // Alternating rapid forward sweeps and tiny dusty pixel particles.
+          const scratch = Math.floor(now / 145) % 4;
+          p(8 - scratch, 14, 3, 3, fur);
+          p(5 - scratch, 16 + (scratch % 2), 4, 2, ink);
+          p(3 - scratch, 18, 2, 1, "#96725b");
+          p(7 - (scratch % 3), 19, 1, 1, "#bc9780");
+        }
       }
       ctx!.restore();
     }
@@ -585,6 +681,8 @@
       } else if (hiddenAt) {
         const elapsed = performance.now() - hiddenAt;
         endAt += elapsed;
+        avatarSceneStart += elapsed;
+        nextAvatarVisit += elapsed;
         travelStart += elapsed;
         nextCloudHop += elapsed;
         hopStart += elapsed;
@@ -606,13 +704,14 @@
       x = pin({ x: memory.x, y: memory.y }).x;
       y = pin({ x: memory.x, y: memory.y }).y;
       facing = memory.facing;
+      nextAvatarVisit = memory.nextAvatarVisit || (now + random(17000, 28000));
       if (memory.mode === "scene" && memory.spot !== "roam" &&
           isVisible(spotElement(memory.spot))) {
         startScene(memory.spot, now, Math.max(300, memory.remaining));
       } else if (memory.mode === "chase" && ballPosition()) {
         beginBallChase(now, Math.max(800, memory.remaining));
       } else if (memory.mode === "walk" || memory.mode === "escape" ||
-          memory.mode === "hopout") {
+          memory.mode === "hopout" || memory.mode === "sprint") {
         walkTo(memory.destination, now);
         travelDuration = Math.max(350, memory.remaining);
       } else {
@@ -637,12 +736,14 @@
     colaCleanup = (remember: boolean) => {
       if (remember) colaMemory = {
         x, y, facing, mode, spot: scene, destination,
-        remaining: mode === "walk" || mode === "escape" || mode === "hopout"
+        nextAvatarVisit,
+        remaining: mode === "walk" || mode === "escape" || mode === "hopout" || mode === "sprint"
           ? Math.max(0, travelDuration - (performance.now() - travelStart))
           : Math.max(0, endAt - performance.now()),
       };
       cancelAnimationFrame(raf);
       wheelOff();
+      setPoopVisible(false);
       window.removeEventListener("cola:ball-launched", onBallLaunched);
       window.removeEventListener("pointermove", pointerMoved);
       window.removeEventListener("pointerout", pointerLeft);

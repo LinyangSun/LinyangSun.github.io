@@ -1364,3 +1364,55 @@ a:hover,
         will-change: auto;
     }
 }
+
+
+/* Cola's temporary pixel-art mess on the top edge of the existing avatar.
+   It is a separate pointer-transparent overlay; the profile photo is untouched. */
+.cola-avatar-poop {
+    position: fixed;
+    z-index: 34;
+    top: 0;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    opacity: 0;
+    pointer-events: none;
+    image-rendering: pixelated;
+    transform-origin: center bottom;
+    transition: opacity 120ms steps(1, end);
+}
+.cola-avatar-poop svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    image-rendering: pixelated;
+}
+.cola-avatar-poop.is-visible { opacity: 1; }
+.cola-avatar-poop.is-burying {
+    animation: cola-paw-bury 230ms steps(2, end) infinite;
+}
+.cola-avatar-poop.is-burying::after {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: -4px;
+    width: 3px;
+    height: 3px;
+    background: #b08a72;
+    box-shadow: 10px 2px #8e7059, -3px -3px #c5a58c;
+    animation: cola-dust 320ms steps(2, end) infinite alternate;
+}
+@keyframes cola-paw-bury {
+    0% { translate: -1px 0; }
+    100% { translate: 2px 0; }
+}
+@keyframes cola-dust {
+    from { opacity: .25; transform: translateY(2px); }
+    to { opacity: .85; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .cola-avatar-poop.is-burying,
+    .cola-avatar-poop.is-burying::after {
+        animation: none;
+    }
+}
