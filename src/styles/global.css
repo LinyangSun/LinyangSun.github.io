@@ -1203,33 +1203,20 @@ a:hover,
     display: none !important;
 }
 
-/* Daily-deduplicated visitor count from the same Stats4U counter as the globe. */
-.daily-visitors-link {
+/* Original flat-square Page views badge styling, with daily-deduplicated data. */
+.pageviews-badge-link {
     display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    max-width: 100%;
-    min-width: 176px;
-    padding: 0.3rem 0.55rem;
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
+    width: 150px;
+    height: 20px;
     text-decoration: none;
-    color: var(--foreground);
-    background: var(--surface);
-    font-variant-numeric: tabular-nums;
+    line-height: 0;
 }
-.daily-visitors-link:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+.pageviews-badge {
+    display: block;
+    width: 150px;
+    height: 20px;
 }
-.daily-visitors-label {
-    font-size: 0.72rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
-.daily-visitors-value {
-    font-size: 0.82rem;
-    font-weight: 700;
-    white-space: nowrap;
+.pageviews-badge-link:hover {
+    opacity: 0.9;
 }

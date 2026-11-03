@@ -13,15 +13,27 @@ const statsUrl = "https://www.stats4u.net/live/5162609191";
 
 <div class="sidebar-traffic" data-daily-visitors>
     <a
-        class="daily-visitors-link"
+        class="pageviews-badge-link"
         href={statsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        title="Sum of daily unique visitor counts. Reloads from the same browser within one day count once; another day counts again."
-        aria-label="Daily unique visitor total. Open statistics."
+        title="Page views: daily unique visitor total. Repeated visits from the same browser on the same day count once."
+        aria-label="Page views. Daily unique visitor total; open statistics."
     >
-        <span class="daily-visitors-label">Daily unique total</span>
-        <strong class="daily-visitors-value" data-daily-visitors-value aria-live="polite">—</strong>
+        <svg
+            class="pageviews-badge"
+            xmlns="http://www.w3.org/2000/svg"
+            width="150"
+            height="20"
+            viewBox="0 0 150 20"
+            role="img"
+            aria-label="Page views, daily unique total"
+        >
+            <rect width="91" height="20" fill="#334155" />
+            <rect x="91" width="59" height="20" fill="#64748b" />
+            <text x="45.5" y="14" text-anchor="middle" fill="#fff" font-family="Verdana, sans-serif" font-size="11">Page views</text>
+            <text x="120.5" y="14" text-anchor="middle" fill="#fff" font-family="Verdana, sans-serif" font-size="11" data-daily-visitors-value>—</text>
+        </svg>
     </a>
 </div>
 
