@@ -1,0 +1,29 @@
+name: Temporary Stats4U city totals check
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/temporary-city-aggregate-20261103.yml']
+permissions:
+  contents: read
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch public city aggregates (no IP addresses)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import urllib.request, json
+          endpoint = 'https://www.stats4u.net/live/5162609191/stats.json?days=400'
+          request = urllib.request.Request(endpoint, headers={'User-Agent':'PublicSiteStatsSnapshot/1.0'})
+          with urllib.request.urlopen(request, timeout=25) as response:
+              data = json.load(response)
+              print('STATUS', response.status)
+          print('GENERATED', data.get('generated'))
+          print('PERIOD', data.get('from'), data.get('to'))
+          print('TOTALS',json.dumps(data.get('totals',{}),ensure_ascii=False))
+          print('CITIES',json.dumps(sorted(data.get('cities') or [],key=lambda v: v.get('hits',0),reverse=True),ensure_ascii=False))
+          print('COUNTRIES',json.dumps(sorted(data.get('countries') or [],key=lambda v: v.get('hits',0),reverse=True),ensure_ascii=False))
+          print('REGIONS',json.dumps(sorted(data.get('regions') or [],key=lambda v: v.get('hits',0),reverse=True),ensure_ascii=False))
+          print('DAILY',json.dumps(data.get('daily') or [],ensure_ascii=False))
+          PY
