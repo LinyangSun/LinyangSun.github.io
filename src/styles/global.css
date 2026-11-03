@@ -980,26 +980,6 @@ a:hover,
     gap: 1.15rem;
 }
 
-/* Minimal, privacy-friendly counter badge underneath the social links. */
-.sidebar-traffic {
-    margin-top: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.sidebar-traffic img {
-    display: block;
-    max-width: 100%;
-    width: auto;
-    height: 20px;
-}
-@media (max-width: 1024px) {
-    .sidebar-traffic {
-        justify-content: flex-start;
-    }
-}
-
-
 /* Sidebar: slowly rotating, low-impact research keyword cloud. */
 .research-cloud {
     width: min(100%, 232px);
@@ -1203,20 +1183,3 @@ a:hover,
     display: none !important;
 }
 
-/* Original flat-square Page views badge styling, with daily-deduplicated data. */
-.pageviews-badge-link {
-    display: inline-flex;
-    align-items: center;
-    width: 150px;
-    height: 20px;
-    text-decoration: none;
-    line-height: 0;
-}
-.pageviews-badge {
-    display: block;
-    width: 150px;
-    height: 20px;
-}
-.pageviews-badge-link:hover {
-    opacity: 0.9;
-}

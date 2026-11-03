@@ -4,7 +4,6 @@ import { getCollection } from "astro:content";
 import Icon from "../ui/Icon.astro";
 import ResearchCloud from "../ui/ResearchCloud.astro";
 import VisitorGlobe from "../ui/VisitorGlobe.astro";
-import DailyVisitors from "../ui/DailyVisitors.astro";
 import { Image } from 'astro:assets';
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -68,7 +67,6 @@ const bio = bioCollection[0]?.data;
                     </a>
                 ))}
             </div>
-            <DailyVisitors />
             <VisitorGlobe />
             <ResearchCloud />
         </div>
