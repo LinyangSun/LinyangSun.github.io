@@ -1202,3 +1202,34 @@ a:hover,
 .visitor-globe-canvas .visitor-globe-option-hidden {
     display: none !important;
 }
+
+/* Daily-deduplicated visitor count from the same Stats4U counter as the globe. */
+.daily-visitors-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    max-width: 100%;
+    min-width: 176px;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    text-decoration: none;
+    color: var(--foreground);
+    background: var(--surface);
+    font-variant-numeric: tabular-nums;
+}
+.daily-visitors-link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.daily-visitors-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.daily-visitors-value {
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+}

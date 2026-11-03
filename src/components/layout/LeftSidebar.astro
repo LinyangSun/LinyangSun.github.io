@@ -4,6 +4,7 @@ import { getCollection } from "astro:content";
 import Icon from "../ui/Icon.astro";
 import ResearchCloud from "../ui/ResearchCloud.astro";
 import VisitorGlobe from "../ui/VisitorGlobe.astro";
+import DailyVisitors from "../ui/DailyVisitors.astro";
 import { Image } from 'astro:assets';
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -13,7 +14,6 @@ const hasCvPdf = existsSync(join(process.cwd(), "public", "CV.pdf"));
 const activeSocials = SOCIALS.filter((s) => s.isActive);
 const bioCollection = await getCollection("bio");
 const bio = bioCollection[0]?.data;
-const pageViewsBadgeUrl = "https://hits.sh/linyangsun.github.io.svg?view=total&style=flat-square&label=Page%20views&color=64748b&labelColor=334155";
 ---
 
 <aside class="sidebar max-lg:flex-row max-lg:flex-wrap max-lg:gap-3 max-md:gap-2">
@@ -68,17 +68,7 @@ const pageViewsBadgeUrl = "https://hits.sh/linyangsun.github.io.svg?view=total&s
                     </a>
                 ))}
             </div>
-            <div class="sidebar-traffic" title="Page views since the counter was added. Repeated visits may be counted.">
-                <img
-                    src={pageViewsBadgeUrl}
-                    alt="Total site page views"
-                    width="150"
-                    height="20"
-                    loading="lazy"
-                    decoding="async"
-                    referrerpolicy="no-referrer"
-                />
-            </div>
+            <DailyVisitors />
             <VisitorGlobe />
             <ResearchCloud />
         </div>

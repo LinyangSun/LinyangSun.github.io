@@ -1,0 +1,74 @@
+---
+/**
+ * Aggregate of Stats4U's daily unique visitor counts.
+ * The globe already counts visits with data-count="1", so this read-only
+ * stats request must never create a second counting event.
+ *
+ * "Unique" here is per counter, calendar day, IP address and user agent.
+ * Repeat page loads within the day from the same browser count once;
+ * the same visitor counts again on a later day.
+ */
+const statsUrl = "https://www.stats4u.net/live/5162609191";
+---
+
+<div class="sidebar-traffic" data-daily-visitors>
+    <a
+        class="daily-visitors-link"
+        href={statsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Sum of daily unique visitor counts. Reloads from the same browser within one day count once; another day counts again."
+        aria-label="Daily unique visitor total. Open statistics."
+    >
+        <span class="daily-visitors-label">Daily unique total</span>
+        <strong class="daily-visitors-value" data-daily-visitors-value aria-live="polite">—</strong>
+    </a>
+</div>
+
+<script>
+    const statsApiUrl = "https://www.stats4u.net/live/5162609191/stats.json?days=400";
+    let activeRequest: AbortController | null = null;
+
+    async function updateDailyVisitors() {
+        const valueElement = document.querySelector<HTMLElement>(
+            "[data-daily-visitors-value]"
+        );
+        if (!valueElement) return;
+
+        activeRequest?.abort();
+        const controller = new AbortController();
+        activeRequest = controller;
+
+        try {
+            const response = await fetch(statsApiUrl, {
+                signal: controller.signal,
+                cache: "default",
+            });
+            if (!response.ok) throw new Error("Statistics unavailable");
+
+            const stats: { totals?: { unique?: number } } = await response.json();
+            const visitorDays = stats?.totals?.unique;
+            if (!Number.isSafeInteger(visitorDays) || visitorDays === undefined || visitorDays < 0) {
+                throw new Error("Invalid visitor total");
+            }
+            if (!controller.signal.aborted) {
+                valueElement.textContent = new Intl.NumberFormat("en").format(visitorDays);
+            }
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                valueElement.textContent = "—";
+                valueElement.setAttribute("title", "Visitor statistics temporarily unavailable");
+            }
+        } finally {
+            if (activeRequest === controller) activeRequest = null;
+        }
+    }
+
+    document.addEventListener("astro:page-load", updateDailyVisitors);
+    document.addEventListener("astro:before-swap", () => activeRequest?.abort());
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", updateDailyVisitors, { once: true });
+    } else {
+        updateDailyVisitors();
+    }
+</script>
