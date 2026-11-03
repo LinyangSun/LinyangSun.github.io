@@ -1,0 +1,221 @@
+---
+/**
+ * Three logical-pixel rainbow ball (3x3 grid, displayed at 12 CSS pixels).
+ * The surrounding transparent 30px hit target makes the tiny toy clickable.
+ * Entirely local animation: no cookies, external service, or IP collection.
+ */
+---
+<button
+  class="cola-toy-ball"
+  data-cola-ball
+  type="button"
+  aria-label="Cola's tiny colorful toy ball. Press and hold to stop; release to launch."
+  title="Hold the ball, then release to launch it for Cola"
+>
+  <svg viewBox="0 0 3 3" aria-hidden="true" focusable="false">
+    <rect x="0" y="0" width="1" height="1" fill="#f57daa"/>
+    <rect x="1" y="0" width="1" height="1" fill="#ffd75c"/>
+    <rect x="2" y="0" width="1" height="1" fill="#6ed7f1"/>
+    <rect x="0" y="1" width="1" height="1" fill="#a68afe"/>
+    <rect x="1" y="1" width="1" height="1" fill="#ff9c4a"/>
+    <rect x="2" y="1" width="1" height="1" fill="#55cbab"/>
+    <rect x="0" y="2" width="1" height="1" fill="#67a5f8"/>
+    <rect x="1" y="2" width="1" height="1" fill="#f26e95"/>
+    <rect x="2" y="2" width="1" height="1" fill="#f5d465"/>
+  </svg>
+</button>
+
+<script>
+  type BallState = { x: number; y: number; vx: number; vy: number };
+  let ballMemory: BallState | null = null;
+  let ballCleanup: ((remember: boolean) => void) | null = null;
+
+  function mountColaBall() {
+    ballCleanup?.(false);
+    ballCleanup = null;
+
+    const element = document.querySelector<HTMLButtonElement>("[data-cola-ball]");
+    if (!element) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const clip = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+    const bounds = () => ({
+      left: 43, right: Math.max(44, window.innerWidth - 43),
+      top: 74, bottom: Math.max(75, window.innerHeight - 24),
+    });
+    const initial = ballMemory;
+    ballMemory = null;
+    let x = initial?.x ?? window.innerWidth * .68;
+    let y = initial?.y ?? window.innerHeight * .75;
+    let vx = reducedMotion ? 0 : (initial?.vx ?? 0);
+    let vy = reducedMotion ? 0 : (initial?.vy ?? 0);
+    let held = false;
+    let activePointer: number | null = null;
+    let activeKey = false;
+    let last = performance.now();
+    let popUntil = 0;
+    let raf = 0;
+
+    function keepOnScreen() {
+      const b = bounds();
+      x = clip(x, b.left, b.right);
+      y = clip(y, b.top, b.bottom);
+    }
+
+    function render(now: number) {
+      keepOnScreen();
+      element!.dataset.x = String(x);
+      element!.dataset.y = String(y);
+      element!.dataset.held = String(held);
+      const scale = !held && now < popUntil
+        ? 1 + .26 * Math.sin(Math.PI * (popUntil - now) / 340) : 1;
+      element!.style.transform =
+        "translate3d(" + Math.round(x - 15) + "px, " + Math.round(y - 15) +
+        "px, 0) scale(" + scale.toFixed(3) + ")";
+    }
+
+    function animate(now: number) {
+      raf = requestAnimationFrame(animate);
+      if (document.visibilityState !== "visible") {
+        last = now;
+        return;
+      }
+      const dt = Math.min((now - last) / 1000, .05);
+      last = now;
+      if (!held && !reducedMotion) {
+        x += vx * dt;
+        y += vy * dt;
+        const b = bounds();
+        if (x < b.left) { x = b.left; vx = Math.abs(vx) * .70; }
+        if (x > b.right) { x = b.right; vx = -Math.abs(vx) * .70; }
+        if (y < b.top) { y = b.top; vy = Math.abs(vy) * .70; }
+        if (y > b.bottom) { y = b.bottom; vy = -Math.abs(vy) * .70; }
+        const decay = Math.pow(.981, dt * 60);
+        vx *= decay;
+        vy *= decay;
+        if (Math.abs(vx) < 4) vx = 0;
+        if (Math.abs(vy) < 4) vy = 0;
+      }
+      render(now);
+    }
+
+    function press() {
+      held = true;
+      vx = 0; vy = 0;
+      element!.classList.add("cola-toy-ball-held");
+      render(performance.now());
+    }
+
+    function launch() {
+      held = false;
+      activePointer = null;
+      activeKey = false;
+      element!.classList.remove("cola-toy-ball-held");
+      const now = performance.now();
+      if (!reducedMotion) {
+        const cat = document.querySelector<HTMLCanvasElement>("[data-cola-pet]");
+        const r = cat?.getBoundingClientRect();
+        const catX = r ? r.left + r.width / 2 : x - 130;
+        const catY = r ? r.top + r.height * .6 : y + 35;
+        let dx = x - catX;
+        let dy = y - catY;
+        const length = Math.max(1, Math.hypot(dx, dy));
+        if (length < 24) { dx = Math.random() > .5 ? 1 : -1; dy = -.4; }
+        const mag = Math.max(1, Math.hypot(dx, dy));
+        vx = dx / mag * 470 + (Math.random() - .5) * 110;
+        vy = dy / mag * 230 - 205;
+      }
+      popUntil = now + 340;
+      render(now);
+      // Event triggers Cola's immediate sprint even if she was napping.
+      window.dispatchEvent(new CustomEvent("cola:ball-launched", {
+        detail: { x, y, vx, vy },
+      }));
+    }
+
+    function onPointerDown(event: PointerEvent) {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (activePointer !== null) return;
+      activePointer = event.pointerId;
+      element!.setPointerCapture(event.pointerId);
+      press();
+    }
+
+    function onPointerUp(event: PointerEvent) {
+      if (activePointer !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (element!.hasPointerCapture(event.pointerId)) {
+        element!.releasePointerCapture(event.pointerId);
+      }
+      launch();
+    }
+
+    function onPointerCancel(event: PointerEvent) {
+      if (activePointer !== event.pointerId) return;
+      activePointer = null;
+      held = false;
+      element!.classList.remove("cola-toy-ball-held");
+      render(performance.now());
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.key === " " || event.key === "Enter") && !activeKey) {
+        event.preventDefault();
+        activeKey = true;
+        press();
+      }
+    }
+
+    function onKeyUp(event: KeyboardEvent) {
+      if ((event.key === " " || event.key === "Enter") && activeKey) {
+        event.preventDefault();
+        launch();
+      }
+    }
+
+    function onBallBatted(event: Event) {
+      if (held || reducedMotion) return;
+      const detail = (event as CustomEvent<{fromX: number; fromY: number; direction: number}>).detail;
+      const direction = (x >= detail.fromX ? 1 : -1) || detail.direction || 1;
+      vx = direction * (300 + Math.random() * 120);
+      vy = -160 + (Math.random() - .5) * 230;
+      popUntil = performance.now() + 280;
+    }
+
+    element.addEventListener("pointerdown", onPointerDown);
+    element.addEventListener("pointerup", onPointerUp);
+    element.addEventListener("pointercancel", onPointerCancel);
+    element.addEventListener("keydown", onKeyDown);
+    element.addEventListener("keyup", onKeyUp);
+    window.addEventListener("cola:ball-batted", onBallBatted);
+    const onResize = () => render(performance.now());
+    window.addEventListener("resize", onResize, { passive: true });
+    render(performance.now());
+    if (!reducedMotion) raf = requestAnimationFrame(animate);
+
+    ballCleanup = (remember: boolean) => {
+      if (remember) ballMemory = { x, y, vx, vy };
+      cancelAnimationFrame(raf);
+      element.removeEventListener("pointerdown", onPointerDown);
+      element.removeEventListener("pointerup", onPointerUp);
+      element.removeEventListener("pointercancel", onPointerCancel);
+      element.removeEventListener("keydown", onKeyDown);
+      element.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("cola:ball-batted", onBallBatted);
+      window.removeEventListener("resize", onResize);
+    };
+  }
+
+  document.addEventListener("astro:page-load", mountColaBall);
+  document.addEventListener("astro:before-swap", () => {
+    ballCleanup?.(true);
+    ballCleanup = null;
+  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountColaBall, { once: true });
+  } else {
+    mountColaBall();
+  }
+</script>

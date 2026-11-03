@@ -16,8 +16,8 @@
 
 <script>
   type Point = { x: number; y: number };
-  type Spot = "roam" | "bed" | "cloud" | "globe" | "wheel";
-  type Mode = "intro" | "walk" | "scene" | "startle" | "escape" | "hopout";
+  type Spot = "roam" | "bed" | "cloud" | "globe" | "wheel" | "ball";
+  type Mode = "intro" | "walk" | "scene" | "startle" | "escape" | "hopout" | "chase";
   type Pose = "sleep" | "sit" | "walk" | "run" | "startled" | "paw" | "jump";
   type Memory = {
     x: number;
@@ -44,6 +44,7 @@
     const globe = document.querySelector<HTMLElement>(".visitor-globe-canvas");
     const bed = document.querySelector<HTMLElement>("[data-cola-bed]");
     const wheel = document.querySelector<HTMLElement>("[data-cola-wheel]");
+    const ball = document.querySelector<HTMLElement>("[data-cola-ball]");
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const random = (a: number, b: number) => a + Math.random() * (b - a);
     const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
@@ -60,10 +61,19 @@
       y: clamp(p.y, 70, Math.max(71, window.innerHeight - 10)),
     });
     const spotElement = (s: Spot): HTMLElement | null => ({
-      roam: null, bed, cloud, globe, wheel
+      roam: null, bed, cloud, globe, wheel, ball
     })[s];
 
+    function ballPosition(): Point | null {
+      if (!ball || ball.dataset.held === "true") return null;
+      const px = Number(ball.dataset.x);
+      const py = Number(ball.dataset.y);
+      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+      return pin({ x: px, y: py });
+    }
+
     function spotPoint(s: Spot): Point {
+      if (s === "ball") return ballPosition() ?? freePoint();
       const r = rect(spotElement(s));
       if (r) {
         if (s === "bed") return pin({ x: r.left + r.width * .50, y: r.top + r.height * .72 });
@@ -110,6 +120,11 @@
     let hopFrom: Point = { x, y };
     let hopTo: Point = { x, y };
     let wheelActive = false;
+    let chaseHits = 0;
+    let chaseLast = 0;
+    let nextBallTap = 0;
+    let swatUntil = 0;
+    let chaseCooldown = 0;
     const encounterCooldown: Partial<Record<Spot, number>> = {};
 
     function wheelOff() {
@@ -124,11 +139,17 @@
       if (isVisible(cloud) && previous !== "cloud") choices.push("cloud", "cloud");
       if (isVisible(wheel) && performance.now() > wheelCooldown && previous !== "wheel")
         choices.push("wheel", "wheel", "wheel");
+      if (ballPosition() && performance.now() > chaseCooldown && previous !== "ball")
+        choices.push("ball", "ball");
       return choices[Math.floor(Math.random() * choices.length)];
     }
 
     function walkTo(next: Spot, now: number, forced?: Point, run = false) {
       if (mode === "scene") encounterCooldown[scene] = now + 8000;
+      if (next === "ball" && ballPosition()) {
+        beginBallChase(now);
+        return;
+      }
       wheelOff();
       mode = run ? "escape" : "walk";
       pose = run ? "run" : "walk";
@@ -139,6 +160,27 @@
       const distance = Math.hypot(to.x - x, to.y - y);
       travelDuration = clamp(distance / (run ? 370 : random(95, 140)) * 1000, run ? 360 : 490, run ? 920 : 7400);
       facing = to.x >= x ? 1 : -1;
+    }
+
+    function beginBallChase(now: number, remaining?: number) {
+      if (!ballPosition()) return;
+      wheelOff();
+      mode = "chase";
+      pose = "run";
+      scene = "ball";
+      destination = "ball";
+      chaseHits = 0;
+      nextBallTap = now + 360;
+      chaseLast = now;
+      swatUntil = 0;
+      endAt = now + (remaining ?? 7200);
+      // The pointer launching the ball should not instantly frighten Cola away.
+      scaredUntil = now + 1500;
+    }
+
+    function onBallLaunched() {
+      if (prefersReducedMotion.matches || window.innerWidth < 590) return;
+      beginBallChase(performance.now(), 7800);
     }
 
     function startScene(next: Spot, now: number, remaining?: number) {
@@ -232,11 +274,52 @@
     }
 
     function advance(now: number) {
-      if (mouse && mode !== "startle" && mode !== "escape" && mode !== "hopout") {
+      if (mouse && mode !== "startle" && mode !== "escape" &&
+          mode !== "hopout" && mode !== "chase") {
         if (Math.hypot(x - mouse.x, y - 29 - mouse.y) < 90) {
           startle(now);
           if (mode === "startle") return;
         }
+      }
+
+      if (mode === "chase") {
+        const toy = ballPosition();
+        const dt = Math.min(Math.max(now - chaseLast, 0), 66) / 1000;
+        chaseLast = now;
+        if (!toy) {
+          pose = "sit";
+          if (now >= endAt) walkTo("roam", now);
+          return;
+        }
+        // Follow the moving ball rather than its original launch position.
+        const want = pin({
+          x: toy.x + (x > toy.x ? 19 : -19),
+          y: toy.y + 18,
+        });
+        const dx = want.x - x;
+        const dy = want.y - y;
+        const distance = Math.hypot(dx, dy);
+        if (distance > 1) {
+          const travel = Math.min(distance, 330 * dt);
+          x += dx / distance * travel;
+          y += dy / distance * travel;
+          if (Math.abs(dx) > 3) facing = dx > 0 ? 1 : -1;
+        }
+        pose = now < swatUntil ? "paw" : "run";
+        if (now >= nextBallTap && Math.hypot(x - toy.x, y - 18 - toy.y) < 42) {
+          window.dispatchEvent(new CustomEvent("cola:ball-batted", {
+            detail: { fromX: x, fromY: y - 18, direction: facing }
+          }));
+          chaseHits++;
+          nextBallTap = now + 1100;
+          swatUntil = now + 260;
+          pose = "paw";
+        }
+        if (now >= endAt || chaseHits >= 3) {
+          chaseCooldown = now + 6500;
+          walkTo("roam", now);
+        }
+        return;
       }
 
       if (mode === "intro") {
@@ -262,6 +345,12 @@
         // A scene starts on contact, even if Cola was headed somewhere else.
         // Recently visited spots are ignored briefly to avoid getting stuck.
         if (mode === "walk") {
+          const toy = ballPosition();
+          if (toy && now >= chaseCooldown &&
+              Math.hypot(toy.x - x, toy.y - (y - 18)) < 43) {
+            beginBallChase(now);
+            return;
+          }
           const encounters: Spot[] = ["wheel", "bed", "cloud", "globe"];
           for (const spot of encounters) {
             if (!isVisible(spotElement(spot)) ||
@@ -504,6 +593,7 @@
       }
     }
 
+    window.addEventListener("cola:ball-launched", onBallLaunched);
     window.addEventListener("pointermove", pointerMoved, { passive: true });
     window.addEventListener("pointerout", pointerLeft, { passive: true });
     document.addEventListener("visibilitychange", visibilityChanged);
@@ -519,6 +609,8 @@
       if (memory.mode === "scene" && memory.spot !== "roam" &&
           isVisible(spotElement(memory.spot))) {
         startScene(memory.spot, now, Math.max(300, memory.remaining));
+      } else if (memory.mode === "chase" && ballPosition()) {
+        beginBallChase(now, Math.max(800, memory.remaining));
       } else if (memory.mode === "walk" || memory.mode === "escape" ||
           memory.mode === "hopout") {
         walkTo(memory.destination, now);
@@ -551,6 +643,7 @@
       };
       cancelAnimationFrame(raf);
       wheelOff();
+      window.removeEventListener("cola:ball-launched", onBallLaunched);
       window.removeEventListener("pointermove", pointerMoved);
       window.removeEventListener("pointerout", pointerLeft);
       document.removeEventListener("visibilitychange", visibilityChanged);
