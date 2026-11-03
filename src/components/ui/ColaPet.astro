@@ -38,6 +38,7 @@
     const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+    let initialized = false;
     let x = Math.min(90, window.innerWidth / 3);
     let y = window.innerHeight - 28;
     let facing = 1;
@@ -161,7 +162,7 @@
 
     function updateScene(now: number, dt: number) {
       if (site === "cloud") {
-        const steps = getCloudSteps();
+        const steps = now >= playStepAt ? getCloudSteps() : [];
         if (steps.length && now > playStepAt) {
           // The rotating words form moving steps under Cola's paws.
           cloudStep = Math.floor(random(0, steps.length));
@@ -373,31 +374,37 @@
     window.addEventListener("pointermove", onPointer, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
+    // Cola is visible immediately: curled up at the word cloud's upper ledge.
+    // Start drawing before the first animation frame so the cat never flashes away.
+    const now = performance.now();
+    if (cloud) {
+      const p = restingPlace("cloud");
+      x = p.x;
+      y = p.y;
+      target = "cloud";
+    } else {
+      const p = restingPlace(within(rect(bed)) ? "bed" : "roam");
+      x = p.x;
+      y = p.y;
+      target = within(rect(bed)) ? "bed" : "roam";
+    }
+    startPause(now);
+    pose = "sleep";
+    pauseUntil = now + random(3500, 6000);
+    playStepAt = pauseUntil - 950;
+    canvas.style.transform = "translate3d(" + Math.round(x - 32) +
+      "px, " + Math.round(y - 60) + "px, 0)";
+    draw(now);
+
+    // Honor reduced-motion settings. On compact screens display Cola
+    // resting instead of running over navigation or article text.
     if (mq.matches || window.innerWidth < 590) {
-      const place = restingPlace(within(rect(bed)) ? "bed" : "roam");
-      x = place.x;
-      y = place.y;
-      pose = "sleep";
-      canvas.style.transform = "translate3d(" + Math.round(x-32) + "px, " + Math.round(y-60) + "px, 0)";
-      draw(performance.now());
       teardownCola = () => {
         window.removeEventListener("pointermove", onPointer);
         document.removeEventListener("visibilitychange", onVisibility);
         removePlayClass();
       };
       return;
-    }
-
-    if (bed && within(rect(bed))) {
-      const p = restingPlace("bed");
-      x = p.x; y = p.y;
-      target = "bed";
-      startPause(performance.now());
-    } else {
-      x = clamp(window.innerWidth * 0.38, 50, window.innerWidth - 35);
-      y = window.innerHeight - 36;
-      target = "roam";
-      startPause(performance.now());
     }
 
     initialized = true;

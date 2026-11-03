@@ -1,5 +1,6 @@
 ---
 import { NAV_LINKS, PAGES } from "../../config";
+import ColaTree from "../ui/ColaTree.astro";
 
 const currentPath = Astro.url.pathname;
 ---
@@ -33,4 +34,5 @@ const currentPath = Astro.url.pathname;
             ))
         }
     </ul>
+    <ColaTree />
 </nav>

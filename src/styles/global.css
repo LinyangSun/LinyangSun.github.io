@@ -1185,64 +1185,68 @@ a:hover,
 
 
 
-/* Cola's pixel cat furniture, placed beneath the rotating word cloud. */
+/* Cola's smaller bed is available beneath the cloud on every page. */
 .cola-nook {
     display: flex;
     position: relative;
     align-items: flex-end;
     justify-content: center;
     width: min(100%, 230px);
-    height: 160px;
-    margin: 0.8rem auto 0;
-    gap: 5px;
+    height: 88px;
+    margin: 0.4rem auto 0;
     user-select: none;
     pointer-events: none;
 }
 .cola-nook::before {
     content: "";
     position: absolute;
-    height: 2px;
-    width: 89%;
-    bottom: 8px;
-    left: 5%;
+    height: 1px;
+    width: 52%;
+    bottom: 5px;
+    left: 24%;
     background: var(--border);
 }
 .cola-bed {
     position: relative;
-    width: 128px;
-    height: 116px;
-    flex: 0 0 128px;
-    align-self: end;
+    width: 92px;
+    height: 81px;
+    flex: 0 0 92px;
 }
 .cola-bed svg {
-    image-rendering: pixelated;
     display: block;
-    height: 100%;
     width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
 }
 .cola-bed-sign {
     position: absolute;
-    top: 13px;
-    left: 42px;
+    top: 8px;
+    left: 29px;
     transform: rotate(-5deg);
-    padding: 1px 7px 2px;
+    padding: 1px 5px;
     background: #886548;
-    border: 2px solid #6c4d3a;
+    border: 1px solid #6c4d3a;
     border-radius: 1px;
     color: #f4e5c7;
-    font: 700 12px/1.25 "JetBrains Mono", monospace;
+    font: 700 10px/1.3 "JetBrains Mono", monospace;
     text-shadow: none;
-    letter-spacing: 0.03em;
 }
-.cola-tree {
-    width: 94px;
-    height: 163px;
-    flex: 0 0 94px;
+/* Cat climbing tree sits in the open space after Tags in the navigation. */
+.cola-navbar-tree {
+    width: 66px;
+    height: 78px;
+    margin-left: auto;
+    flex: 0 0 66px;
+    pointer-events: none;
+    user-select: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
-.cola-tree svg {
+.cola-navbar-tree svg {
     display: block;
-    width: 100%;
-    height: 100%;
+    width: 60px;
+    height: 76px;
     image-rendering: pixelated;
 }
 .research-cloud {
@@ -1285,12 +1289,14 @@ a:hover,
 }
 @media (max-width: 1024px) {
     .cola-nook {
-        margin: 0.7rem 0 0;
-        max-width: 220px;
-        height: 150px;
+        margin: 0.4rem 0 0;
+        height: 82px;
     }
-    .cola-tree {
-        height: 150px;
+}
+@media (max-width: 760px) {
+    /* Don't squeeze the seven navigation links on smaller screens. */
+    .cola-navbar-tree {
+        display: none;
     }
 }
 @media (max-width: 640px), (prefers-reduced-motion: reduce) {
