@@ -11,7 +11,7 @@
   width="48"
   height="40"
   role="img"
-  aria-label="Cola, a black pixel cat with long legs and a small white tuft on her chest"
+  aria-label="Cola, a lively pixel black cat with yellow eyes and a tiny white chest tuft"
 ></canvas>
 
 <script>
@@ -330,116 +330,140 @@
       }
     }
 
+    // Original tiny pixel sprites inspired by Cola's reference sheet.
+    // All poses use a 24 x 20 grid (2 canvas pixels per art pixel).
+    // A walking cat always has a side-facing body; only the sitting pose
+    // occasionally turns her face toward the viewer.
     function paint(now: number) {
       ctx!.clearRect(0, 0, 48, 40);
+      ctx!.imageSmoothingEnabled = false;
       ctx!.save();
-      if (facing < 0) { ctx!.translate(48, 0); ctx!.scale(-1, 1); }
-      const ink = "#17161e";
-      const fur = "#252431";
-      const shade = "#494656";
-      const highlight = "#696678";
-      const eye = "#b5eb94";
-      const pink = "#d99ca9";
-      const tuft = "#f7f6f2";
-      const px = (a: number, b: number, w: number, h: number, color: string) => {
+      // Art is drawn with the head on the left; flip when she walks right.
+      if (facing > 0) { ctx!.translate(48, 0); ctx!.scale(-1, 1); }
+
+      const ink = "#101018";
+      const fur = "#292a35";
+      const shade = "#434551";
+      const glint = "#5a5b67";
+      const yellow = "#f8e24f";
+      const nose = "#e0acb4";
+      const white = "#f6f5f2";
+      const p = (x: number, y: number, w: number, h: number, color: string) => {
         ctx!.fillStyle = color;
-        ctx!.fillRect(Math.round(a), Math.round(b), w, h);
+        ctx!.fillRect(Math.round(x) * 2, Math.round(y) * 2, w * 2, h * 2);
       };
-      const moving = pose === "walk" || pose === "run";
-      const speed = pose === "run" ? 76 : 160;
-      const swing = moving ? Math.sin(now / speed) : 0;
-      const step = moving ? Math.round(swing * (pose === "run" ? 5 : 3)) : 0;
-      const opposite = -step;
-      const bob = moving ? Math.round(Math.abs(Math.sin(now / speed)) * 1) : 0;
-      const startled = pose === "startled";
-      const sleep = pose === "sleep";
-      const jump = pose === "jump";
-      const blink = sleep || (!startled && Math.floor(now / 3200) % 6 === 0 &&
-        Math.floor(now / 130) % 4 === 0);
+      const frame = Math.floor(now / (pose === "run" ? 82 : 165)) % 4;
+      const blink = pose !== "startled" &&
+        Math.floor(now / 3000) % 5 === 0 && Math.floor(now / 145) % 5 === 0;
+      const pairOfEyes = (lx: number, rx: number, yy: number, size = 2) => {
+        if (blink) {
+          p(lx, yy + 1, size, 1, glint);
+          p(rx, yy + 1, size, 1, glint);
+        } else {
+          p(lx, yy, size, 2, yellow);
+          p(rx, yy, size, 2, yellow);
+        }
+      };
 
-      // Side-on silhouette: tail on the left, muzzle on the right.
-      const bodyTop = startled ? 12 : sleep ? 23 : 17 + bob;
-      // Tail sways during movement and fluffs up when startled.
-      const swish = startled ? -4 : Math.round(Math.sin(now / 340) * 2);
-      px(6, 20 + swish, startled ? 7 : 5, startled ? 8 : 5, ink);
-      px(4, 17 + swish, 4, 7, fur);
-      px(7, 14 + swish, 5, 6, fur);
-      px(9, 17 + swish, 6, 6, shade);
-
-      if (sleep) {
-        px(11, 25, 28, 10, ink);
-        px(13, 24, 24, 8, fur);
-        px(29, 19, 13, 12, ink);
-        px(31, 16, 4, 7, ink);
-        px(38, 16, 4, 7, ink);
-        px(31, 23, 10, 6, fur);
-        px(34, 27, 3, 2, tuft);
-        px(39, 27, 2, 1, pink);
-        px(33, 25, 4, 1, shade);
-        px(37, 25, 4, 1, shade);
-        ctx!.restore();
-        return;
-      }
-
-      // Far legs first. Four long legs alternate in diagonal pairs.
-      const farBack = moving ? -step : 0;
-      const farFront = moving ? step : 0;
-      px(18 + farBack, 25 + bob, 4, 12 - bob, shade);
-      px(17 + farBack, 36, 7, 2, ink);
-      px(31 + farFront, 24 + bob, 4, 13 - bob, shade);
-      px(30 + farFront, 36, 7, 2, ink);
-
-      // Torso is drawn over the upper legs, with a slightly raised back.
-      if (startled) {
-        px(11, 14, 21, 15, ink);
-        px(15, 11, 17, 12, fur);
-        px(19, 9, 8, 6, fur);
+      if (pose === "sit" && Math.floor(now / 4800) % 3 !== 2) {
+        // Front-facing sitting cat with both paws planted and a swishing tail.
+        const wag = Math.round(Math.sin(now / 410));
+        p(16, 12, 3, 6, ink); p(18, 9, 2, 5, fur);
+        p(19, 6 + wag, 2, 5, ink); p(19, 5 + wag, 3, 2, ink);
+        p(8, 11, 9, 7, ink); p(9, 12, 7, 5, fur);
+        p(9, 13, 2, 5, shade); p(14, 13, 2, 5, shade);
+        p(8, 17, 3, 2, ink); p(14, 17, 3, 2, ink);
+        p(12, 13, 1, 1, white);
+        p(7, 2, 3, 5, ink); p(15, 2, 3, 5, ink);
+        p(8, 3, 1, 2, shade); p(16, 3, 1, 2, shade);
+        p(6, 6, 13, 8, ink); p(7, 7, 11, 6, fur);
+        p(8, 7, 9, 1, shade);
+        pairOfEyes(9, 14, 9);
+        p(12, 12, 1, 1, nose);
+      } else if (pose === "sleep") {
+        // Curled cat with ears lowered and eyes closed.
+        p(18, 15, 3, 3, ink); p(20, 13, 2, 4, ink);
+        p(21, 11 + Math.round(Math.sin(now / 750)), 2, 3, fur);
+        p(7, 13, 14, 6, ink); p(9, 12, 10, 6, fur);
+        p(11, 13, 5, 1, shade);
+        p(3, 10, 4, 4, ink); p(9, 10, 3, 4, ink);
+        p(2, 12, 11, 6, ink); p(3, 13, 9, 4, fur);
+        p(4, 13, 6, 1, shade);
+        p(5, 15, 2, 1, glint); p(9, 15, 2, 1, glint);
+        p(7, 17, 1, 1, nose); p(11, 16, 1, 1, white);
+      } else if (pose === "jump") {
+        // Fully extended flying leap, not the standing cat moved upward.
+        p(18, 8, 4, 3, ink); p(21, 6, 2, 3, ink);
+        p(22, 4, 2, 3, fur);
+        p(8, 9, 12, 5, ink); p(9, 10, 10, 3, fur);
+        p(12, 10, 5, 1, shade);
+        p(16, 12, 5, 3, ink); p(20, 14, 3, 2, ink);
+        p(10, 12, 4, 3, ink); p(8, 14, 4, 2, ink);
+        p(0, 13, 4, 3, ink); p(1, 16, 3, 2, ink);
+        p(3, 7, 3, 5, ink); p(8, 7, 3, 5, ink);
+        p(2, 9, 10, 6, ink); p(3, 10, 8, 4, fur);
+        pairOfEyes(4, 8, 11);
+        p(7, 13, 1, 1, nose); p(10, 14, 1, 1, white);
+      } else if (pose === "startled") {
+        // Arched back, bottlebrush tail, wide eyes and two alarm pixels.
+        p(20, 10, 3, 7, ink); p(21, 4, 2, 7, ink);
+        p(22, 3, 2, 3, shade);
+        p(10, 10, 11, 6, ink); p(12, 8, 8, 7, ink);
+        p(12, 10, 8, 5, fur);
+        p(12, 15, 2, 4, ink); p(18, 15, 2, 4, ink);
+        p(10, 13, 2, 4, ink);
+        p(2, 2, 3, 7, ink); p(8, 1, 3, 8, ink);
+        p(3, 4, 1, 4, shade); p(9, 3, 1, 4, shade);
+        p(2, 7, 10, 8, ink); p(3, 8, 8, 6, fur);
+        p(4, 9, 2, 3, yellow); p(8, 9, 2, 3, yellow);
+        p(7, 12, 1, 1, nose); p(10, 13, 1, 1, white);
+        p(13, 4, 2, 2, "#d88e55"); p(13, 1, 2, 2, "#d88e55");
+      } else if (pose === "sit") {
+        // A second sitting silhouette, head turned sideways.
+        const wag = Math.round(Math.sin(now / 390));
+        p(18, 13, 3, 5, ink); p(20, 9 + wag, 2, 6, ink);
+        p(21, 6 + wag, 2, 4, fur);
+        p(10, 12, 10, 6, ink); p(11, 13, 8, 4, fur);
+        p(10, 17, 4, 2, ink); p(17, 17, 3, 2, ink);
+        p(11, 14, 1, 1, white);
+        p(3, 4, 3, 5, ink); p(9, 4, 3, 5, ink);
+        p(3, 7, 10, 8, ink); p(4, 8, 8, 5, fur);
+        p(5, 9, 2, 2, yellow); p(9, 9, 2, 2, yellow);
+        p(8, 12, 1, 1, nose);
       } else {
-        px(10, bodyTop, 28, 12, ink);
-        px(13, bodyTop + 1, 23, 10, fur);
-        px(15, bodyTop + 1, 12, 2, shade);
-      }
-
-      const nearBack = moving ? step : 0;
-      const nearFront = moving ? opposite : 0;
-      px(14 + nearBack, 25 + bob, 5, 12 - bob, fur);
-      px(13 + nearBack, 36, 9, 3, ink);
-      px(35 + nearFront, 25 + bob, 5, 12 - bob, fur);
-      px(34 + nearFront, 36, 9, 3, ink);
-      if (jump) {
-        // Reaching paws while airborne.
-        px(17, 26, 8, 5, fur);
-        px(30, 26, 10, 5, fur);
-      }
-
-      // One visible side eye, not a permanently front-facing head.
-      px(30, 10 + bob, 13, 15, ink);
-      px(31, startled ? 7 : 5, 5, 8, ink);
-      px(38, startled ? 8 : 5, 5, 8, ink);
-      px(33, startled ? 10 : 8, 2, 4, pink);
-      px(39, startled ? 10 : 8, 2, 4, pink);
-      px(31, 12 + bob, 11, 12, fur);
-      px(33, 12 + bob, 5, 2, shade);
-      if (blink) px(38, 17 + bob, 3, 1, highlight);
-      else {
-        px(38, 15 + bob, startled ? 4 : 3, startled ? 4 : 3, eye);
-        px(40, 15 + bob, 1, startled ? 4 : 3, ink);
-      }
-      px(43, 19 + bob, 3, 2, pink);
-      px(40, 22 + bob, 3, 1, highlight);
-      // Small white chest tuft below the chin.
-      px(33, 24 + bob, 5, 3, tuft);
-      px(35, 27 + bob, 3, 2, tuft);
-      px(36, 29 + bob, 1, 2, tuft);
-      if (startled) {
-        // Sudden raised fur and exclamation pixels.
-        px(18, 8, 3, 3, shade);
-        px(25, 7, 2, 4, shade);
-        px(41, 0, 3, 7, "#dc8d52");
-        px(41, 9, 3, 3, "#dc8d52");
-      }
-      if (pose === "run") {
-        px(13, 17, 3, 2, highlight);
+        // Standing, walking, running and pawing share one readable side-view.
+        // Four gait frames use alternating diagonal leg pairs.
+        const moving = pose === "walk" || pose === "run";
+        const stride = moving
+          ? (pose === "run" ? [-3, 1, 3, -1] : [-2, 0, 2, 0])[frame]
+          : 0;
+        const lift = moving && frame % 2 ? 1 : 0;
+        const wag = Math.round(Math.sin(now / 370));
+        p(18, 12 + lift, 3, 4, ink);
+        p(20, 9 + wag, 2, 5, ink); p(21, 5 + wag, 2, 5, ink);
+        p(22, 4 + wag, 2, 2, fur);
+        // Rear pair behind the torso.
+        p(11 - stride, 15 + lift, 2, 4 - lift, shade);
+        p(18 + stride, 15 + lift, 2, 4 - lift, shade);
+        p(8, 9 + lift, 12, 7, ink); p(9, 10 + lift, 10, 5, fur);
+        p(10, 10 + lift, 7, 1, shade);
+        // Foreground paws show the opposite phase, with small foot shifts.
+        p(11 + stride, 15 + lift, 2, 4 - lift, ink);
+        p(18 - stride, 15 + lift, 2, 4 - lift, ink);
+        p(10 + stride, 18, 4, 2, ink);
+        p(17 - stride, 18, 4, 2, ink);
+        p(2, 3 + lift, 3, 5, ink); p(8, 3 + lift, 3, 5, ink);
+        p(3, 4 + lift, 1, 2, shade); p(9, 4 + lift, 1, 2, shade);
+        p(2, 7 + lift, 10, 7, ink); p(3, 8 + lift, 8, 5, fur);
+        p(4, 8 + lift, 6, 1, shade);
+        pairOfEyes(4, 8, 9 + lift);
+        p(7, 12 + lift, 1, 1, nose);
+        p(10, 13 + lift, 1, 1, white);
+        if (pose === "paw") {
+          // One raised paw for playing with the globe.
+          p(8, 14, 3, 3, fur);
+          p(6, 12 + (frame % 2), 3, 3, ink);
+        }
       }
       ctx!.restore();
     }
