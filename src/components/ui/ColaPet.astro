@@ -151,8 +151,11 @@
     let swatUntil = 0;
     let chaseCooldown = 0;
     const avatarSceneDuration = 6400;
+    // Calm autonomous pacing: three times the former idle interval.
+    // Explicit mouse / toy interactions still interrupt rest immediately.
+    const calmIdleMultiplier = 3;
     let avatarSceneStart = 0;
-    let nextAvatarVisit = performance.now() + random(17000, 28000);
+    let nextAvatarVisit = performance.now() + random(51000, 84000);
     const encounterCooldown: Partial<Record<Spot, number>> = {};
 
     function setPoopVisible(show: boolean, burying = false) {
@@ -186,7 +189,7 @@
     }
 
     function walkTo(next: Spot, now: number, forced?: Point, run = false) {
-      if (mode === "scene") encounterCooldown[scene] = now + 8000;
+      if (mode === "scene") encounterCooldown[scene] = now + 24000;
       setPoopVisible(false);
       if (next === "ball" && ballPosition()) {
         beginBallChase(now);
@@ -309,8 +312,10 @@
         pose = "walk";
         endAt = now + (remaining ?? random(3500, 5800));
       } else {
-        pose = "sit";
-        endAt = now + (remaining ?? random(1400, 3600));
+        // A relaxed pause between adventures. Cola spends most of this time
+        // lying down, otherwise sitting quietly with the occasional blink.
+        pose = Math.random() < 0.62 ? "sleep" : "sit";
+        endAt = now + (remaining ?? random(1400, 3600) * calmIdleMultiplier);
       }
     }
 
@@ -347,7 +352,7 @@
 
     function startle(now: number) {
       if (mode === "startle" || mode === "escape" || mode === "hopout" || now < scaredUntil) return;
-      if (mode === "scene" && scene === "avatar") nextAvatarVisit = now + 35000;
+      if (mode === "scene" && scene === "avatar") nextAvatarVisit = now + 105000;
       setPoopVisible(false);
       wheelOff();
       mode = "startle";
@@ -360,7 +365,7 @@
 
     function finishWheel(now: number) {
       wheelOff();
-      wheelCooldown = now + 14500;
+      wheelCooldown = now + 43500;
       encounterCooldown.wheel = wheelCooldown;
       scene = "wheel";
       mode = "hopout";
@@ -463,7 +468,7 @@
           pose = "paw";
         }
         if (now >= endAt || chaseHits >= 3) {
-          chaseCooldown = now + 6500;
+          chaseCooldown = now + 19500;
           walkTo("roam", now);
         }
         return;
@@ -471,7 +476,7 @@
 
       if (mode === "intro") {
         pose = "sleep";
-        if (now >= endAt) walkTo(chooseSpot("cloud"), now);
+        if (now >= endAt) walkTo("roam", now);
       } else if (mode === "startle") {
         pose = "startled";
         if (now >= endAt) {
@@ -526,7 +531,7 @@
         if (scene === "avatar") {
           if (!isVisible(avatar)) {
             setPoopVisible(false);
-            nextAvatarVisit = now + 60000;
+            nextAvatarVisit = now + 180000;
             walkTo("roam", now);
             return;
           }
@@ -557,7 +562,7 @@
           }
           if (now >= endAt) {
             setPoopVisible(false);
-            nextAvatarVisit = now + random(75000, 120000);
+            nextAvatarVisit = now + random(225000, 360000);
             walkTo("roam", now);
           }
         } else if (scene === "wheel") {
@@ -570,7 +575,7 @@
           pose = "sleep";
           const p = spotPoint("bed");
           x = lerp(x, p.x, .06); y = lerp(y, p.y, .06);
-          if (now >= endAt) walkTo(chooseSpot("bed"), now);
+          if (now >= endAt) walkTo("roam", now);
         } else if (scene === "cloud") {
           if (cloudHopCount < 5 && now >= nextCloudHop) beginCloudHop(now);
           if (now < hopEnd) {
@@ -579,7 +584,7 @@
             y = lerp(hopFrom.y, hopTo.y, t) - 21 * Math.sin(Math.PI * t);
             pose = "jump";
           } else if (cloudHopCount >= 5) {
-            walkTo(chooseSpot("cloud"), now);
+            walkTo("roam", now);
           } else {
             pose = "sit";
           }
@@ -595,9 +600,10 @@
             y = lerp(y, centerY + Math.sin(angle) * g.height * .15, .11);
             facing = Math.sin(angle) > 0 ? -1 : 1;
           }
-          if (now >= endAt) walkTo(chooseSpot("globe"), now);
+          if (now >= endAt) walkTo("roam", now);
         } else {
-          pose = "sit";
+          // Keep the selected sitting / sleeping pose for this whole pause,
+          // rather than forcing a sit animation on every frame.
           if (now >= endAt) walkTo(chooseSpot("roam"), now);
         }
       }
@@ -871,7 +877,7 @@
       x = pin({ x: memory.x, y: memory.y }).x;
       y = pin({ x: memory.x, y: memory.y }).y;
       facing = memory.facing;
-      nextAvatarVisit = memory.nextAvatarVisit || (now + random(17000, 28000));
+      nextAvatarVisit = memory.nextAvatarVisit || (now + random(51000, 84000));
       mouse = memory.cursorPoint;
       cursorAnchor = memory.cursorAnchor;
       cursorStationarySince = memory.cursorStationarySince;
@@ -882,8 +888,8 @@
         startCursorTaps(now);
         cursorSwats = memory.cursorSwats;
         if (cursorSwats === 2) cursorExitAt = now + 450;
-      } else if (memory.mode === "scene" && memory.spot !== "roam" &&
-          isVisible(spotElement(memory.spot))) {
+      } else if (memory.mode === "scene" &&
+          (memory.spot === "roam" || isVisible(spotElement(memory.spot)))) {
         startScene(memory.spot, now, Math.max(300, memory.remaining));
       } else if (memory.mode === "chase" && ballPosition()) {
         beginBallChase(now, Math.max(800, memory.remaining));
@@ -902,7 +908,7 @@
       pose = "sleep";
       scene = "cloud";
       destination = "cloud";
-      endAt = now + random(3200, 5000);
+      endAt = now + random(5500, 8500);
     }
     display(now);
 
