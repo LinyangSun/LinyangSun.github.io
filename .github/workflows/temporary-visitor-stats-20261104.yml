@@ -1,0 +1,23 @@
+name: Temporary visitor city summary 20261104
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/temporary-visitor-stats-20261104.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve public Stats4U aggregates only
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request
+          req=urllib.request.Request("https://www.stats4u.net/live/5162609191/stats.json?days=400",headers={"User-Agent":"PublicVisitorStatsSummary/1.0"})
+          with urllib.request.urlopen(req,timeout=30) as response:
+              print("RESPONSE_STATUS",response.status)
+              data=json.load(response)
+          for field in ["generated","from","to","totals","countries","regions","cities","daily"]:
+              print("STAT_"+field.upper(),json.dumps(data.get(field),ensure_ascii=False))
+          PY
