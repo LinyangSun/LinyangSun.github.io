@@ -314,7 +314,7 @@
       } else {
         // A relaxed pause between adventures. Cola spends most of this time
         // lying down, otherwise sitting quietly with the occasional blink.
-        pose = Math.random() < 0.62 ? "sleep" : "sit";
+        pose = Math.random() < 0.62 ? "sit" : "sleep";
         endAt = now + (remaining ?? random(1400, 3600) * calmIdleMultiplier);
       }
     }
