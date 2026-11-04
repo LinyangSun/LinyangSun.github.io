@@ -133,6 +133,7 @@
     let cursorSwats = 0;
     let nextCursorSwat = 0;
     let cursorPawUntil = 0;
+    let cursorPawStarted = 0;
     let cursorExitAt = 0;
     let raf = 0;
     let lastDraw = 0;
@@ -246,6 +247,7 @@
       cursorSwats = 0;
       nextCursorSwat = now + 190;
       cursorPawUntil = 0;
+      cursorPawStarted = 0;
       cursorExitAt = Number.POSITIVE_INFINITY;
     }
 
@@ -416,9 +418,10 @@
         if (cursorSwats < 2 && now >= nextCursorSwat) {
           cursorSwats++;
           pose = "paw";
-          cursorPawUntil = now + 245;
-          nextCursorSwat = now + 620;
-          if (cursorSwats === 2) cursorExitAt = now + 750;
+          cursorPawStarted = now;
+          cursorPawUntil = now + 430;
+          nextCursorSwat = now + 850;
+          if (cursorSwats === 2) cursorExitAt = now + 1070;
         }
         if (cursorSwats === 2 && now >= cursorExitAt) {
           finishCursorTaps(now);
@@ -740,12 +743,37 @@
         p(7, 12 + lift, 1, 1, nose);
         p(10, 13 + lift, 1, 1, white);
         if (pose === "paw") {
-          // Raised forepaw. An idle-cursor tap gets a tiny impact sparkle.
-          p(8, 14, 3, 3, fur);
-          p(6, 12 + (frame % 2), 3, 3, ink);
           if (mode === "cursorTap" && now < cursorPawUntil) {
-            p(2, 10, 1, 2, "#f6d36b");
-            p(0, 12, 2, 1, "#f6d36b");
+            // Three distinct pixel-art frames: wind up, long forward swat,
+            // then retract. The paw projects 11 logical pixels forward
+            // from the shoulder, while the other foreleg stays planted.
+            const swipeAge = now - cursorPawStarted;
+            p(10, 14, 4, 3, shade); // shoulder joint
+            if (swipeAge < 105) {
+              // Bent foreleg, paw raised beside the muzzle.
+              p(7, 11, 5, 4, fur);
+              p(5, 9, 4, 4, ink);
+              p(6, 9, 2, 1, glint);
+            } else if (swipeAge < 315) {
+              // Long straight foreleg and clear, squared-off paw tip.
+              p(7, 15, 6, 2, fur);
+              p(3, 15, 6, 2, ink);
+              p(0, 14, 4, 4, fur);
+              p(0, 15, 2, 1, shade);
+              // Two impact ticks next to the mouse cursor.
+              p(0, 11, 1, 2, "#f6d36b");
+              p(2, 12, 2, 1, "#f6d36b");
+              p(0, 19, 2, 1, "#f6d36b");
+            } else {
+              // Pull back to the shoulder before the next strike.
+              p(7, 13, 6, 3, fur);
+              p(5, 12, 4, 4, ink);
+              p(5, 12, 2, 1, glint);
+            }
+          } else {
+            // The subtler paw motion remains for globe and ball play.
+            p(8, 14, 3, 3, fur);
+            p(6, 12 + (frame % 2), 3, 3, ink);
           }
         }
         if (pose === "bury") {
@@ -820,6 +848,7 @@
         if (Number.isFinite(cursorVisitAfter)) cursorVisitAfter += elapsed;
         nextCursorSwat += elapsed;
         cursorPawUntil += elapsed;
+        if (cursorPawStarted) cursorPawStarted += elapsed;
         if (Number.isFinite(cursorExitAt)) cursorExitAt += elapsed;
         travelStart += elapsed;
         nextCloudHop += elapsed;
