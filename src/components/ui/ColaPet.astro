@@ -24,7 +24,7 @@
 <script>
   type Point = { x: number; y: number };
   type Spot = "roam" | "bed" | "cloud" | "globe" | "wheel" | "ball" | "avatar";
-  type Mode = "intro" | "walk" | "scene" | "startle" | "escape" | "hopout" | "chase" | "sprint";
+  type Mode = "intro" | "walk" | "scene" | "startle" | "escape" | "hopout" | "chase" | "sprint" | "cursorApproach" | "cursorTap";
   type Pose = "sleep" | "sit" | "walk" | "run" | "startled" | "paw" | "jump" | "squat" | "bury";
   type Memory = {
     x: number;
@@ -35,6 +35,11 @@
     destination: Spot;
     remaining: number;
     nextAvatarVisit: number;
+    cursorPoint: Point | null;
+    cursorAnchor: Point | null;
+    cursorStationarySince: number;
+    cursorVisitAfter: number;
+    cursorSwats: number;
   };
 
   let colaCleanup: ((remember: boolean) => void) | null = null;
@@ -121,6 +126,14 @@
     let wheelCooldown = 0;
     let scaredUntil = 0;
     let mouse: Point | null = null;
+    // The pointer must stay within an 8px radius for 10 seconds.
+    let cursorAnchor: Point | null = null;
+    let cursorStationarySince = 0;
+    let cursorVisitAfter = Number.POSITIVE_INFINITY;
+    let cursorSwats = 0;
+    let nextCursorSwat = 0;
+    let cursorPawUntil = 0;
+    let cursorExitAt = 0;
     let raf = 0;
     let lastDraw = 0;
     let hiddenAt = 0;
@@ -192,6 +205,52 @@
         run ? 920 : next === "avatar" ? 2500 : 7400
       );
       facing = to.x >= x ? 1 : -1;
+    }
+
+    function cursorInteractionActive() {
+      return mode === "cursorApproach" || mode === "cursorTap";
+    }
+
+    function canApproachCursor() {
+      // Never interrupt a scheduled 5s wheel scene, avatar scene, ball chase,
+      // initial nap, or a startled escape. Ordinary roaming may be interrupted.
+      return mode !== "intro" && mode !== "chase" &&
+        mode !== "startle" && mode !== "escape" &&
+        mode !== "hopout" && mode !== "sprint" &&
+        !(mode === "scene" && (scene === "wheel" || scene === "avatar"));
+    }
+
+    function approachCursor(now: number) {
+      if (!mouse || !cursorAnchor || !canApproachCursor()) return;
+      setPoopVisible(false);
+      wheelOff();
+      const side = x <= mouse.x ? -1 : 1;
+      const landing = pin({x: mouse.x + side * 28, y: mouse.y + 31});
+      mode = "cursorApproach";
+      pose = "run";
+      origin = {x, y};
+      to = landing;
+      travelStart = now;
+      const distance = Math.hypot(to.x - x, to.y - y);
+      travelDuration = clamp(distance / 270 * 1000, 480, 2900);
+      facing = side === -1 ? 1 : -1;
+      cursorSwats = 0;
+    }
+
+    function startCursorTaps(now: number) {
+      mode = "cursorTap";
+      pose = "sit";
+      cursorSwats = 0;
+      nextCursorSwat = now + 190;
+      cursorPawUntil = 0;
+      cursorExitAt = Number.POSITIVE_INFINITY;
+    }
+
+    function finishCursorTaps(now: number) {
+      // If the pointer stays still, another visit is scheduled at random.
+      cursorVisitAfter = now + random(19000, 42000);
+      cursorSwats = 0;
+      walkTo("roam", now);
     }
 
     function beginBallChase(now: number, remaining?: number) {
@@ -316,12 +375,52 @@
     }
 
     function advance(now: number) {
-      if (mouse && mode !== "startle" && mode !== "escape" &&
+      if (mouse && cursorAnchor && cursorStationarySince > 0 &&
+          now - cursorStationarySince >= 10000 &&
+          now >= cursorVisitAfter && canApproachCursor() &&
+          !cursorInteractionActive()) {
+        approachCursor(now);
+      }
+
+      // Cola deliberately approaches the idle pointer without being startled
+      // by the proximity rule that applies during all ordinary activities.
+      if (mouse && !cursorInteractionActive() &&
+          mode !== "startle" && mode !== "escape" &&
           mode !== "hopout" && mode !== "chase") {
         if (Math.hypot(x - mouse.x, y - 29 - mouse.y) < 90) {
           startle(now);
           if (mode === "startle") return;
         }
+      }
+
+      if (mode === "cursorApproach") {
+        const progress = clamp((now - travelStart) / travelDuration, 0, 1);
+        const eased = progress * progress * (3 - 2 * progress);
+        x = lerp(origin.x, to.x, eased);
+        y = lerp(origin.y, to.y, eased);
+        pose = "run";
+        if (progress >= 1) startCursorTaps(now);
+        return;
+      }
+
+      if (mode === "cursorTap") {
+        if (!mouse) {
+          finishCursorTaps(now);
+          return;
+        }
+        // Stay beside the cursor, lifting the front paw exactly twice.
+        pose = now < cursorPawUntil ? "paw" : "sit";
+        if (cursorSwats < 2 && now >= nextCursorSwat) {
+          cursorSwats++;
+          pose = "paw";
+          cursorPawUntil = now + 245;
+          nextCursorSwat = now + 620;
+          if (cursorSwats === 2) cursorExitAt = now + 750;
+        }
+        if (cursorSwats === 2 && now >= cursorExitAt) {
+          finishCursorTaps(now);
+        }
+        return;
       }
 
       if (mode === "chase") {
@@ -638,9 +737,13 @@
         p(7, 12 + lift, 1, 1, nose);
         p(10, 13 + lift, 1, 1, white);
         if (pose === "paw") {
-          // One raised paw for playing with the globe.
+          // Raised forepaw. An idle-cursor tap gets a tiny impact sparkle.
           p(8, 14, 3, 3, fur);
           p(6, 12 + (frame % 2), 3, 3, ink);
+          if (mode === "cursorTap" && now < cursorPawUntil) {
+            p(2, 10, 1, 2, "#f6d36b");
+            p(0, 12, 2, 1, "#f6d36b");
+          }
         }
         if (pose === "bury") {
           // Alternating rapid forward sweeps and tiny dusty pixel particles.
@@ -672,10 +775,36 @@
 
     function pointerMoved(event: PointerEvent) {
       if (event.pointerType !== "mouse") return;
-      mouse = { x: event.clientX, y: event.clientY };
-      if (Math.hypot(x - mouse.x, y - 29 - mouse.y) < 90) startle(performance.now());
+      const now = performance.now();
+      const newPoint = {x: event.clientX, y: event.clientY};
+      const moved = !cursorAnchor ||
+        Math.hypot(cursorAnchor.x - newPoint.x, cursorAnchor.y - newPoint.y) > 8;
+      mouse = newPoint;
+      if (moved) {
+        cursorAnchor = newPoint;
+        cursorStationarySince = now;
+        cursorVisitAfter = now + 10000;
+        // Moving the mouse away interrupts a visit; the existing startle
+        // reaction then makes Cola flee instead of continuing to strike.
+        if (cursorInteractionActive()) {
+          startle(now);
+          return;
+        }
+      }
+      if (!cursorInteractionActive() &&
+          Math.hypot(x - mouse.x, y - 29 - mouse.y) < 90) {
+        startle(now);
+      }
     }
-    function pointerLeft() { mouse = null; }
+    function pointerLeft(event: PointerEvent) {
+      // Ignore pointerout events while moving between ordinary page elements.
+      if (event.relatedTarget) return;
+      mouse = null;
+      cursorAnchor = null;
+      cursorStationarySince = 0;
+      cursorVisitAfter = Number.POSITIVE_INFINITY;
+      if (cursorInteractionActive()) walkTo("roam", performance.now());
+    }
     function visibilityChanged() {
       if (document.visibilityState === "hidden") {
         hiddenAt = performance.now();
@@ -684,6 +813,11 @@
         endAt += elapsed;
         avatarSceneStart += elapsed;
         nextAvatarVisit += elapsed;
+        if (cursorStationarySince) cursorStationarySince += elapsed;
+        if (Number.isFinite(cursorVisitAfter)) cursorVisitAfter += elapsed;
+        nextCursorSwat += elapsed;
+        cursorPawUntil += elapsed;
+        if (Number.isFinite(cursorExitAt)) cursorExitAt += elapsed;
         travelStart += elapsed;
         nextCloudHop += elapsed;
         hopStart += elapsed;
@@ -706,7 +840,17 @@
       y = pin({ x: memory.x, y: memory.y }).y;
       facing = memory.facing;
       nextAvatarVisit = memory.nextAvatarVisit || (now + random(17000, 28000));
-      if (memory.mode === "scene" && memory.spot !== "roam" &&
+      mouse = memory.cursorPoint;
+      cursorAnchor = memory.cursorAnchor;
+      cursorStationarySince = memory.cursorStationarySince;
+      cursorVisitAfter = memory.cursorVisitAfter;
+      if (memory.mode === "cursorApproach" && mouse) {
+        approachCursor(now);
+      } else if (memory.mode === "cursorTap" && mouse) {
+        startCursorTaps(now);
+        cursorSwats = memory.cursorSwats;
+        if (cursorSwats === 2) cursorExitAt = now + 450;
+      } else if (memory.mode === "scene" && memory.spot !== "roam" &&
           isVisible(spotElement(memory.spot))) {
         startScene(memory.spot, now, Math.max(300, memory.remaining));
       } else if (memory.mode === "chase" && ballPosition()) {
@@ -738,7 +882,13 @@
       if (remember) colaMemory = {
         x, y, facing, mode, spot: scene, destination,
         nextAvatarVisit,
-        remaining: mode === "walk" || mode === "escape" || mode === "hopout" || mode === "sprint"
+        cursorPoint: mouse,
+        cursorAnchor,
+        cursorStationarySince,
+        cursorVisitAfter,
+        cursorSwats,
+        remaining: mode === "walk" || mode === "escape" || mode === "hopout" || mode === "sprint" ||
+          mode === "cursorApproach"
           ? Math.max(0, travelDuration - (performance.now() - travelStart))
           : Math.max(0, endAt - performance.now()),
       };
