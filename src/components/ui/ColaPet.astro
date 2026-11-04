@@ -221,7 +221,10 @@
     }
 
     function approachCursor(now: number) {
-      if (!mouse || !cursorAnchor || !canApproachCursor()) return;
+      // Eligibility is checked at the idle trigger. Restoration after an
+      // Astro page swap starts from the default 'intro' mode, so it must not
+      // be rejected here.
+      if (!mouse || !cursorAnchor) return;
       setPoopVisible(false);
       wheelOff();
       const side = x <= mouse.x ? -1 : 1;
