@@ -1,0 +1,55 @@
+# Pages CMS configuration for the Astro blog.
+# The CMS edits Markdown in GitHub; GitHub Pages handles deployment.
+media:
+  input: public/images/posts
+  output: /images/posts
+  categories: [image]
+  rename: safe
+
+content:
+  - name: posts
+    label: Blog posts
+    type: collection
+    path: src/content/posts
+    format: yaml-frontmatter
+    filename: "{year}-{month}-{day}-{primary}.md"
+    exclude: [".gitkeep"]
+    view:
+      fields: [title, date, description]
+      primary: title
+      sort: [date, title]
+      default:
+        sort: date
+        order: desc
+    fields:
+      - name: title
+        label: Title
+        type: string
+        required: true
+      - name: date
+        label: Publication date
+        type: date
+        required: true
+        options:
+          format: yyyy-MM-dd
+      - name: description
+        label: Summary
+        type: text
+      - name: author
+        label: Author
+        type: string
+        default: Linyang Sun
+      - name: tags
+        label: Tags
+        type: string
+        list: true
+      - name: image
+        label: Cover image
+        type: image
+      - name: body
+        label: Article body
+        type: rich-text
+        required: true
+        options:
+          format: markdown
+          switcher: true
